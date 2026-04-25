@@ -18,6 +18,9 @@ build/
 node_modules/
 frontend/dist/
 .vite/
+*.tsbuildinfo
+frontend/vite.config.d.ts
+frontend/vite.config.js
 
 # Local data (never commit recordings or DB)
 /data/
