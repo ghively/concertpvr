@@ -1,8 +1,5 @@
 from pathlib import Path
 
-import pytest
-from pydantic import ValidationError
-
 from concertpvr.config import Config
 
 
@@ -27,8 +24,8 @@ def test_overrides_from_env(monkeypatch, tmp_path):
     assert cfg.port == 9000
 
 
-def test_data_dir_required(monkeypatch):
+def test_data_dir_defaults(monkeypatch):
     monkeypatch.delenv("CPVR_DATA_DIR", raising=False)
-    with pytest.raises(ValidationError) as exc_info:
-        Config()
-    assert "data_dir" in str(exc_info.value).lower()
+    cfg = Config()
+    # data_dir has a sensible default for dev
+    assert cfg.data_dir == Path("/tmp/concertpvr-data")

@@ -11,7 +11,7 @@ from concertpvr.db import Database
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
-    cfg = Config(data_dir=Path("/tmp/concertpvr-data"))
+    cfg = Config()
     cfg.data_dir.mkdir(parents=True, exist_ok=True)
     app.state.config = cfg
     app.state.db = Database(cfg.db_url)
@@ -34,7 +34,7 @@ def create_app() -> FastAPI:
     app.include_router(health_router, prefix="/api")
     app.include_router(settings_router, prefix="/api")
 
-    cfg = Config(data_dir=Path("/tmp/concertpvr-data"))
+    cfg = Config()
     if cfg.static_dir is not None and cfg.static_dir.is_dir():
         _mount_spa(app, cfg.static_dir)
 
