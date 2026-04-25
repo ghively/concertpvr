@@ -1,5 +1,8 @@
 from pathlib import Path
 
+import pytest
+from pydantic import ValidationError
+
 from concertpvr.config import Config
 
 
@@ -26,9 +29,6 @@ def test_overrides_from_env(monkeypatch, tmp_path):
 
 def test_data_dir_required(monkeypatch):
     monkeypatch.delenv("CPVR_DATA_DIR", raising=False)
-    try:
+    with pytest.raises(ValidationError) as exc_info:
         Config()
-    except Exception as e:
-        assert "data_dir" in str(e).lower() or "CPVR_DATA_DIR" in str(e)
-    else:
-        raise AssertionError("expected Config() to raise without CPVR_DATA_DIR")
+    assert "data_dir" in str(exc_info.value).lower()
