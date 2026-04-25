@@ -34,6 +34,9 @@ def create_app() -> FastAPI:
     app.include_router(health_router, prefix="/api")
     app.include_router(settings_router, prefix="/api")
 
+    from concertpvr.api.streams import router as streams_router
+    app.include_router(streams_router, prefix="/api")
+
     cfg = Config()
     if cfg.static_dir is not None and cfg.static_dir.is_dir():
         _mount_spa(app, cfg.static_dir)
