@@ -67,6 +67,8 @@ async def test_subscriber_count_tracks_active():
     assert bc.subscriber_count("t") == 1
     await bc.publish("t", {"x": 1})
     await task
+    # async-generator cleanup is scheduled via the loop; yield to it.
+    await asyncio.sleep(0)
     assert bc.subscriber_count("t") == 0
 
 
