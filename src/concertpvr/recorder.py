@@ -56,6 +56,9 @@ class RecorderWorker:
     async def run(self) -> int:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self._proc = await self._runner.spawn(self._build_argv())
+        # Handle stop() called before this coroutine had a chance to run.
+        if self._stop_requested:
+            self._proc.terminate()
 
         wait_task = asyncio.create_task(self._proc.wait())
         progress_task = asyncio.create_task(self._poll_progress())
