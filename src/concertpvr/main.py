@@ -29,4 +29,7 @@ def create_app() -> FastAPI:
     from concertpvr.api.health import router as health_router
     app.include_router(health_router, prefix="/api")
 
+    from concertpvr.api.settings import router as settings_router
+    app.include_router(settings_router, prefix="/api")
+
     return app
