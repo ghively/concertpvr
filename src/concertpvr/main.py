@@ -1,4 +1,5 @@
 """FastAPI app factory."""
+
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -9,13 +10,14 @@ from concertpvr.db import Database
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
-    cfg = Config()
+async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
+    cfg = Config(data_dir=Path("/tmp/concertpvr-data"))
     cfg.data_dir.mkdir(parents=True, exist_ok=True)
     app.state.config = cfg
     app.state.db = Database(cfg.db_url)
 
     from concertpvr.models import Base
+
     Base.metadata.create_all(app.state.db.engine)
 
     yield
@@ -28,10 +30,11 @@ def create_app() -> FastAPI:
 
     from concertpvr.api.health import router as health_router
     from concertpvr.api.settings import router as settings_router
+
     app.include_router(health_router, prefix="/api")
     app.include_router(settings_router, prefix="/api")
 
-    cfg = Config()
+    cfg = Config(data_dir=Path("/tmp/concertpvr-data"))
     if cfg.static_dir is not None and cfg.static_dir.is_dir():
         _mount_spa(app, cfg.static_dir)
 
@@ -49,5 +52,5 @@ def _mount_spa(app: FastAPI, static_dir: Path) -> None:
     index = static_dir / "index.html"
 
     @app.get("/{full_path:path}", include_in_schema=False)
-    async def spa_fallback(full_path: str):  # noqa: ARG001
+    async def spa_fallback(full_path: str) -> FileResponse:  # noqa: ARG001
         return FileResponse(index)

@@ -1,4 +1,5 @@
 """Pydantic request/response models."""
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -18,6 +19,7 @@ class SettingsRead(BaseModel):
 
 class SettingsPatch(BaseModel):
     """All fields optional — PATCH semantics. Unknown fields rejected."""
+
     model_config = ConfigDict(extra="forbid")
 
     emby_url: str | None = None

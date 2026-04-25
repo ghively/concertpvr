@@ -22,10 +22,13 @@ def test_get_settings_returns_defaults_on_fresh_install(client):
 
 
 def test_patch_settings_updates_values(client):
-    r = client.patch("/api/settings", json={
-        "emby_url": "http://emby.local:8096",
-        "max_concurrent_recordings": 2,
-    })
+    r = client.patch(
+        "/api/settings",
+        json={
+            "emby_url": "http://emby.local:8096",
+            "max_concurrent_recordings": 2,
+        },
+    )
     assert r.status_code == 200
     body = r.json()
     assert body["emby_url"] == "http://emby.local:8096"

@@ -1,4 +1,5 @@
 """Liveness probe."""
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import text
 
@@ -9,7 +10,7 @@ router = APIRouter()
 
 
 @router.get("/healthz")
-def healthz(deep: bool = Query(False), db: Database = Depends(get_db)) -> dict[str, str]:
+def healthz(deep: bool = Query(False), db: Database = Depends(get_db)) -> dict[str, str]:  # noqa: B008
     body = {"status": "ok"}
     if deep:
         with db.session() as s:

@@ -6,9 +6,10 @@ Phase 1 defines only the `settings` singleton. Future phases append tables:
   - Phase 4: segments, setlists
   - Phase 5: channel_watchers
 """
+
 from __future__ import annotations
 
-from sqlalchemy import String, Integer, Boolean
+from sqlalchemy import Boolean, Integer, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 

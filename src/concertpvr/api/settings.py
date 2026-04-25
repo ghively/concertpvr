@@ -1,4 +1,5 @@
 """Settings singleton CRUD."""
+
 from fastapi import APIRouter, Depends
 
 from concertpvr.db import Database
@@ -21,12 +22,15 @@ def _get_or_create(db: Database) -> Settings:
 
 
 @router.get("/settings", response_model=SettingsRead)
-def read_settings(db: Database = Depends(get_db)) -> Settings:
+def read_settings(db: Database = Depends(get_db)) -> Settings:  # noqa: B008
     return _get_or_create(db)
 
 
 @router.patch("/settings", response_model=SettingsRead)
-def patch_settings(patch: SettingsPatch, db: Database = Depends(get_db)) -> Settings:
+def patch_settings(
+    patch: SettingsPatch,
+    db: Database = Depends(get_db),  # noqa: B008
+) -> Settings:
     updates = patch.model_dump(exclude_unset=True)
     with db.session() as s:
         row = s.get(Settings, 1)
