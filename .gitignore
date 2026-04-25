@@ -1,0 +1,42 @@
+# brainstorming session artifacts
+.superpowers/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+
+# Node / frontend
+node_modules/
+frontend/dist/
+.vite/
+
+# Local data (never commit recordings or DB)
+/data/
+/media/
+*.db
+*.db-journal
+*.sqlite
+*.sqlite-journal
+logs/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Secrets
+.env
+.env.local
+*.key
+cookies.txt
