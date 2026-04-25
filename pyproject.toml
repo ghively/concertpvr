@@ -51,3 +51,9 @@ ignore = ["E501"]
 python_version = "3.12"
 strict = true
 packages = ["concertpvr"]
+plugins = ["pydantic.mypy"]
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true

@@ -11,10 +11,7 @@ class Config(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="CPVR_", extra="ignore")
 
-    data_dir: Path = Field(
-        default=Path("/tmp/concertpvr-data"),
-        description="Host data directory (mounted into container)",
-    )
+    data_dir: Path = Field(..., description="Host data directory (mounted into container)")
     publish_dir: Path = Field(
         default=Path("/media/concerts"),
         description="Where published segments land (Emby movies library)",
