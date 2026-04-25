@@ -16,6 +16,8 @@ class Config(BaseSettings):
         description="Where published segments land (Emby movies library)",
     )
 
+    static_dir: Path | None = None  # path to built React SPA; None in dev
+
     host: str = "0.0.0.0"
     port: int = 8787
 
