@@ -83,13 +83,26 @@ class AsyncSubprocessRunner:
 
 
 class _FakeManagedProcess:
-    def __init__(self, stdout: list[str], stderr: list[str], exit_code: int) -> None:
+    def __init__(
+        self,
+        stdout: list[str],
+        stderr: list[str],
+        exit_code: int,
+        *,
+        blocking: bool = False,
+    ) -> None:
         self.pid = 0
         self._stdout = deque(stdout)
         self._stderr = deque(stderr)
         self._exit_code = exit_code
         self._terminated = False
         self._killed = False
+        # _done is pre-set (ready to return) unless blocking=True is requested.
+        # blocking=True makes wait() suspend until terminate() or kill() is called,
+        # which is required for tests that need the fake process to keep "running".
+        self._done: asyncio.Event = asyncio.Event()
+        if not blocking:
+            self._done.set()
 
     async def stdout_lines(self) -> AsyncIterator[str]:
         while self._stdout:
@@ -102,6 +115,7 @@ class _FakeManagedProcess:
             await asyncio.sleep(0)
 
     async def wait(self) -> int:
+        await self._done.wait()
         if self._killed:
             return -signal.SIGKILL.value if sys.platform != "win32" else -9
         if self._terminated:
@@ -110,21 +124,30 @@ class _FakeManagedProcess:
 
     def terminate(self) -> None:
         self._terminated = True
+        self._done.set()
 
     def kill(self) -> None:
         self._killed = True
+        self._done.set()
 
 
 class FakeProcessRunner:
     """Test double. Pre-load expected outputs with .queue() before .spawn()."""
 
     def __init__(self) -> None:
-        self._queued: deque[tuple[list[str], list[str], int]] = deque()
+        self._queued: deque[tuple[list[str], list[str], int, bool]] = deque()
         self.spawned: list[list[str]] = []
 
-    def queue(self, _name: str, stdout: list[str], stderr: list[str] | None = None,
-              exit_code: int = 0) -> None:
-        self._queued.append((list(stdout), list(stderr or []), exit_code))
+    def queue(
+        self,
+        _name: str,
+        stdout: list[str],
+        stderr: list[str] | None = None,
+        exit_code: int = 0,
+        *,
+        blocking: bool = False,
+    ) -> None:
+        self._queued.append((list(stdout), list(stderr or []), exit_code, blocking))
 
     async def spawn(
         self,
@@ -135,5 +158,5 @@ class FakeProcessRunner:
         self.spawned.append(list(argv))
         if not self._queued:
             return _FakeManagedProcess([], [], 0)
-        stdout, stderr, exit_code = self._queued.popleft()
-        return _FakeManagedProcess(stdout, stderr, exit_code)
+        stdout, stderr, exit_code, blocking = self._queued.popleft()
+        return _FakeManagedProcess(stdout, stderr, exit_code, blocking=blocking)
