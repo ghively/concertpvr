@@ -1,0 +1,15 @@
+services:
+  concertpvr:
+    build: .
+    image: concertpvr:latest
+    container_name: concertpvr
+    ports:
+      - "8787:8787"
+    volumes:
+      - /volume1/concertpvr:/data
+      - /volume1/media/concerts:/media/concerts
+    environment:
+      CPVR_DATA_DIR: /data
+      CPVR_PUBLISH_DIR: /media/concerts
+      CPVR_STATIC_DIR: /app/static
+    restart: unless-stopped
