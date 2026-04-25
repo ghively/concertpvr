@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(C:/Users/geneh/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/brainstorming/scripts/start-server.sh *)",
+      "Bash(git init *)",
+      "Bash(git add *)",
+      "Bash(git checkout *)",
+      "Bash(python3 *)",
+      "Bash(git config *)",
+      "Bash(git -c credential.helper=cache commit -m \"feat: python project scaffolding with fastapi and dev tooling\")",
+      "Bash(python *)",
+      "Bash(./.venv/Scripts/python.exe *)",
+      "Bash(unset SSH_AUTH_SOCK)",
+      "Bash(python3.12 --version)",
+      "Bash(cat)",
+      "Read(//tmp/**)",
+      "Skill(update-config)",
+      "Bash(npm --version)",
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(git -C /c/Users/geneh/git/concertpvr ls-files)",
+      "Bash(xargs grep *)",
+      "Bash(git tag *)",
+      "Bash(git show-ref *)"
+    ]
+  }
+}
