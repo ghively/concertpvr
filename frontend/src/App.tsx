@@ -1,20 +1,23 @@
-import { Button } from "@/components/ui/button";
-import { Card, CardLabel } from "@/components/ui/card";
+import { Routes, Route } from "react-router-dom";
+import Layout from "@/components/Layout";
+import Dashboard from "@/pages/Dashboard";
+import Streams from "@/pages/Streams";
+import Schedule from "@/pages/Schedule";
+import Library from "@/pages/Library";
+import Watchers from "@/pages/Watchers";
+import Settings from "@/pages/Settings";
 
 export default function App() {
   return (
-    <div className="p-8 space-y-4">
-      <h1 className="text-xl font-semibold text-terracotta">◉ concertpvr</h1>
-      <p className="text-ink-dim">Phase 1 — foundation booting.</p>
-      <div className="flex gap-2">
-        <Button variant="primary">Primary</Button>
-        <Button>Default</Button>
-        <Button variant="ghost">Ghost</Button>
-      </div>
-      <Card>
-        <CardLabel>Sample Card</CardLabel>
-        <div className="text-sm mt-1">If this renders in editorial colors, shadcn setup works.</div>
-      </Card>
-    </div>
+    <Routes>
+      <Route path="/" element={<Layout />}>
+        <Route index element={<Dashboard />} />
+        <Route path="streams" element={<Streams />} />
+        <Route path="schedule" element={<Schedule />} />
+        <Route path="library" element={<Library />} />
+        <Route path="watchers" element={<Watchers />} />
+        <Route path="settings" element={<Settings />} />
+      </Route>
+    </Routes>
   );
 }
