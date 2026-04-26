@@ -141,6 +141,10 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
 def create_app() -> FastAPI:
     app = FastAPI(title="concertpvr", version="0.1.0", lifespan=lifespan)
 
+    from concertpvr.api.auth import AuthMiddleware
+
+    app.add_middleware(AuthMiddleware)
+
     from concertpvr.api.health import router as health_router
     from concertpvr.api.settings import router as settings_router
     from concertpvr.api.streams import router as streams_router
@@ -172,6 +176,10 @@ def create_app() -> FastAPI:
     from concertpvr.api.channel_watchers import router as channel_watchers_router
 
     app.include_router(channel_watchers_router, prefix="/api")
+
+    from concertpvr.api.auth import router as auth_router
+
+    app.include_router(auth_router, prefix="/api")
 
     cfg = Config()
     if cfg.static_dir is not None and cfg.static_dir.is_dir():

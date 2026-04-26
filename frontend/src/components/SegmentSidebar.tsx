@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useConfirm } from "@/components/ui/confirm";
 import { cn } from "@/lib/utils";
 
 const STATUS_COLOR = {
@@ -41,6 +42,8 @@ export function SegmentSidebar({
   onPublish,
   publishingId,
 }: Props) {
+  const confirm = useConfirm();
+
   if (segments.length === 0) {
     return (
       <Card className="text-center py-8 text-ink-dim text-xs">
@@ -104,9 +107,14 @@ export function SegmentSidebar({
               )}
               <Button
                 variant="ghost"
-                onClick={(e) => {
+                onClick={async (e) => {
                   e.stopPropagation();
-                  if (confirm(`Delete segment "${seg.artist}"?`)) onDelete(seg.id);
+                  const ok = await confirm({
+                    message: `Delete segment "${seg.artist}"?`,
+                    confirmLabel: "Delete",
+                    destructive: true,
+                  });
+                  if (ok) onDelete(seg.id);
                 }}
               >
                 ✕

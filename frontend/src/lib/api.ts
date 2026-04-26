@@ -14,7 +14,14 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   });
   const text = await res.text();
   const json = text ? (() => { try { return JSON.parse(text); } catch { return text; } })() : null;
-  if (!res.ok) throw new ApiError(res.status, json);
+  if (!res.ok) {
+    if (res.status === 401 && !path.startsWith("/api/auth/")) {
+      if (window.location.pathname !== "/login") {
+        window.location.href = "/login";
+      }
+    }
+    throw new ApiError(res.status, json);
+  }
   return json as T;
 }
 
@@ -192,6 +199,47 @@ export const setlistsApi = {
 };
 
 export const recordingMediaUrl = (id: number) => `/api/recordings/${id}/media`;
+
+// ── Auth ────────────────────────────────────────────────────────────────────
+
+export type SessionState = {
+  authenticated: boolean;
+  password_set: boolean;
+};
+
+export const authApi = {
+  me: () => api.get<SessionState>("/api/auth/me"),
+  login: async (password: string) => {
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ password }),
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      throw new ApiError(res.status, body);
+    }
+  },
+  logout: async () => {
+    await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+  },
+  setPassword: async (newPassword: string, currentPassword?: string) => {
+    const res = await fetch("/api/auth/set-password", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        new_password: newPassword,
+        current_password: currentPassword ?? null,
+      }),
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      throw new ApiError(res.status, body);
+    }
+  },
+};
 
 // ── Schedules ───────────────────────────────────────────────────────────────
 

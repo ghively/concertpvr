@@ -3,6 +3,7 @@ import { useStreams, useDeleteStream, useToggleWatch, useWatchSubscription } fro
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useConfirm } from "@/components/ui/confirm";
 import { AddStreamDialog } from "@/components/AddStreamDialog";
 import { LiveProgressBar } from "@/components/LiveProgressBar";
 import type { Stream } from "@/lib/api";
@@ -40,6 +41,7 @@ function StreamRow({ stream }: { stream: Stream }) {
   const { data: sub } = useWatchSubscription(stream.id);
   const toggle = useToggleWatch(stream.id);
   const del = useDeleteStream();
+  const confirm = useConfirm();
   const enabled = sub?.enabled ?? false;
 
   return (
@@ -67,8 +69,14 @@ function StreamRow({ stream }: { stream: Stream }) {
         </Button>
         <Button
           variant="ghost"
-          onClick={() => {
-            if (confirm(`Delete "${stream.title}"?`)) del.mutate(stream.id);
+          onClick={async () => {
+            const ok = await confirm({
+              title: "Delete stream",
+              message: `Delete "${stream.title}"? This will also remove its recordings.`,
+              confirmLabel: "Delete",
+              destructive: true,
+            });
+            if (ok) del.mutate(stream.id);
           }}
         >
           ✕

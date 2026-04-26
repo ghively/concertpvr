@@ -47,6 +47,10 @@ class Settings(Base):
     # yt-dlp cookies file (nullable)
     yt_dlp_cookies_path: Mapped[str | None] = mapped_column(String, nullable=True)
 
+    # auth
+    password_hash: Mapped[str | None] = mapped_column(String, nullable=True)
+    session_secret: Mapped[str | None] = mapped_column(String, nullable=True)
+
 
 class Stream(Base):
     __tablename__ = "streams"

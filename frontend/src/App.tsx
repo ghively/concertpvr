@@ -1,18 +1,32 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import Dashboard from "@/pages/Dashboard";
 import Streams from "@/pages/Streams";
 import Schedule from "@/pages/Schedule";
-import Recordings from "@/pages/Recordings";
-import TimelineEditor from "@/pages/TimelineEditor";
 import Library from "@/pages/Library";
 import Watchers from "@/pages/Watchers";
 import Settings from "@/pages/Settings";
+import Recordings from "@/pages/Recordings";
+import TimelineEditor from "@/pages/TimelineEditor";
+import Login from "@/pages/Login";
+import { useSession } from "@/lib/query";
+
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const { data, isLoading } = useSession();
+  if (isLoading) {
+    return <div className="text-ink-dim text-xs p-8">Loading…</div>;
+  }
+  if (data && data.password_set && !data.authenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  return <>{children}</>;
+}
 
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<Layout />}>
+      <Route path="/login" element={<Login />} />
+      <Route path="/" element={<AuthGate><Layout /></AuthGate>}>
         <Route index element={<Dashboard />} />
         <Route path="streams" element={<Streams />} />
         <Route path="schedule" element={<Schedule />} />

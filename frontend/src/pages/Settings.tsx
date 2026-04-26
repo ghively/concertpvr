@@ -1,18 +1,27 @@
-import { useState, useEffect } from "react";
-import { useSettings, useUpdateSettings } from "@/lib/query";
+import { useEffect, useState } from "react";
+import { useSettings, useUpdateSettings, useSession } from "@/lib/query";
 import { Button } from "@/components/ui/button";
 import { Card, CardLabel } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import type { SettingsPatch } from "@/lib/api";
+import { authApi, type ApiError, type SettingsPatch } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 export default function SettingsPage() {
   const { data, isLoading, error } = useSettings();
   const update = useUpdateSettings();
+  const { data: session, refetch: refetchSession } = useSession();
 
   const [form, setForm] = useState<SettingsPatch>({});
   useEffect(() => {
     if (data) setForm({});
   }, [data]);
+
+  const [currentPw, setCurrentPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [pwSubmitting, setPwSubmitting] = useState(false);
+  const [pwMessage, setPwMessage] = useState<
+    { kind: "ok"; text: string } | { kind: "err"; text: string } | null
+  >(null);
 
   if (isLoading) return <div className="text-ink-dim text-xs">Loading…</div>;
   if (error || !data) return <div className="text-terracotta text-xs">Failed to load settings.</div>;
@@ -28,6 +37,26 @@ export default function SettingsPage() {
       if (form[k] !== data[k]) (dirty as Record<string, unknown>)[k as string] = form[k];
     }
     if (Object.keys(dirty).length > 0) update.mutate(dirty);
+  };
+
+  const submitPassword = async () => {
+    setPwMessage(null);
+    if (!newPw) return;
+    setPwSubmitting(true);
+    try {
+      await authApi.setPassword(newPw, session?.password_set ? currentPw : undefined);
+      setCurrentPw(""); setNewPw("");
+      setPwMessage({ kind: "ok", text: "Password updated." });
+      refetchSession();
+    } catch (e) {
+      const err = e as ApiError;
+      setPwMessage({
+        kind: "err",
+        text: err.status === 401 ? "Current password is incorrect." : err.message,
+      });
+    } finally {
+      setPwSubmitting(false);
+    }
   };
 
   return (
@@ -101,9 +130,40 @@ export default function SettingsPage() {
             onChange={(e) => field("max_concurrent_recordings")(Number(e.target.value))}
           />
         </Labeled>
+        <Labeled label="Auto-prune buffer when disk full">
+          <button
+            onClick={() => field("auto_prune_when_full")(!merged.auto_prune_when_full)}
+            className={cn(
+              "w-9 h-5 rounded-full relative transition-colors",
+              merged.auto_prune_when_full ? "bg-sage/30" : "bg-surface-3",
+            )}
+          >
+            <span
+              className={cn(
+                "absolute top-0.5 w-4 h-4 rounded-full transition-all",
+                merged.auto_prune_when_full ? "left-[18px] bg-sage" : "left-0.5 bg-ink-dim",
+              )}
+            />
+          </button>
+        </Labeled>
       </Card>
 
-      <div className="flex gap-2">
+      <Card className="mb-4 space-y-3">
+        <CardLabel>yt-dlp</CardLabel>
+        <Labeled
+          label="Cookies file path"
+          help="Optional. Export your YouTube cookies and place the file in /data/. Required for member-only or age-gated streams."
+        >
+          <Input
+            className="font-mono"
+            value={merged.yt_dlp_cookies_path ?? ""}
+            onChange={(e) => field("yt_dlp_cookies_path")(e.target.value || null)}
+            placeholder="/data/cookies.txt"
+          />
+        </Labeled>
+      </Card>
+
+      <div className="flex gap-2 mb-8">
         <Button variant="primary" onClick={save} disabled={update.isPending}>
           {update.isPending ? "Saving…" : "Save"}
         </Button>
@@ -112,6 +172,42 @@ export default function SettingsPage() {
           <span className="text-terracotta text-xs self-center">Error: {update.error.message}</span>
         )}
       </div>
+
+      <Card className="space-y-3">
+        <CardLabel>Password</CardLabel>
+        <p className="text-xs text-ink-dim">
+          {session?.password_set
+            ? "Change your password. You'll stay signed in on this device."
+            : "Set a password to require sign-in for the web UI. Until you do, anyone on the LAN can access the app."}
+        </p>
+        {session?.password_set && (
+          <Labeled label="Current password">
+            <Input
+              type="password"
+              value={currentPw}
+              onChange={(e) => setCurrentPw(e.target.value)}
+            />
+          </Labeled>
+        )}
+        <Labeled label="New password">
+          <Input
+            type="password"
+            value={newPw}
+            onChange={(e) => setNewPw(e.target.value)}
+          />
+        </Labeled>
+        {pwMessage && (
+          <p className={cn(
+            "text-xs",
+            pwMessage.kind === "ok" ? "text-sage" : "text-red-400",
+          )}>
+            {pwMessage.text}
+          </p>
+        )}
+        <Button variant="primary" onClick={submitPassword} disabled={pwSubmitting || !newPw}>
+          {pwSubmitting ? "Updating…" : session?.password_set ? "Change password" : "Set password"}
+        </Button>
+      </Card>
     </div>
   );
 }

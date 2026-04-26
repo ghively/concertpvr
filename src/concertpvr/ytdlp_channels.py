@@ -80,7 +80,9 @@ async def fetch_channel_live_broadcasts(channel_url: str) -> list[BroadcastInfo]
                     or f"https://www.youtube.com/watch?v={entry.get('id', '')}"
                 ),
                 title=str(entry.get("title", "")),
-                channel_name=str(entry.get("channel") or data.get("uploader") or data.get("title", "")),
+                channel_name=str(
+                    entry.get("channel") or data.get("uploader") or data.get("title", "")
+                ),
                 is_live=True,
             )
         )

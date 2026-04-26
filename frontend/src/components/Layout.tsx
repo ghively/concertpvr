@@ -1,5 +1,9 @@
 import { NavLink, Outlet } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
+import { authApi } from "@/lib/api";
+import { useSession } from "@/lib/query";
 
 const navItems = [
   { to: "/", label: "Dashboard", end: true },
@@ -11,6 +15,11 @@ const navItems = [
 ];
 
 export default function Layout() {
+  const nav = useNavigate();
+  const qc = useQueryClient();
+  const { data: session } = useSession();
+  const showLogout = session?.password_set ?? false;
+
   return (
     <div className="min-h-screen flex flex-col bg-surface-0">
       <header className="flex items-center gap-4 px-4 py-2.5 bg-surface-1 border-b border-border">
@@ -43,6 +52,18 @@ export default function Layout() {
         >
           ⚙ Settings
         </NavLink>
+        {showLogout && (
+          <button
+            onClick={async () => {
+              await authApi.logout();
+              qc.invalidateQueries({ queryKey: ["auth", "me"] });
+              nav("/login", { replace: true });
+            }}
+            className="ml-3 text-xs text-ink-dim hover:text-ink"
+          >
+            Log out
+          </button>
+        )}
       </header>
       <main className="flex-1 p-4">
         <Outlet />

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm";
 import { useSchedules, useDeleteSchedule } from "@/lib/query";
 import { NewScheduleDialog } from "@/components/NewScheduleDialog";
 import { ScheduleGrid } from "@/components/ScheduleGrid";
@@ -10,6 +11,7 @@ export default function SchedulePage() {
   const [selected, setSelected] = useState<Schedule | null>(null);
   const { data, isLoading } = useSchedules();
   const del = useDeleteSchedule();
+  const confirm = useConfirm();
 
   return (
     <div>
@@ -42,8 +44,13 @@ export default function SchedulePage() {
             {selected.status === "pending" && (
               <Button
                 variant="ghost"
-                onClick={() => {
-                  if (confirm("Delete this schedule?")) {
+                onClick={async () => {
+                  const ok = await confirm({
+                    message: "Delete this schedule?",
+                    confirmLabel: "Delete",
+                    destructive: true,
+                  });
+                  if (ok) {
                     del.mutate(selected.id);
                     setSelected(null);
                   }
