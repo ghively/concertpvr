@@ -1,5 +1,3 @@
-import pytest
-
 from concertpvr.auth import hash_password, verify_password
 from concertpvr.session import create_token, verify_token
 
@@ -41,6 +39,7 @@ def test_verify_token_rejects_wrong_secret():
 
 def test_verify_token_rejects_expired():
     import time
+
     secret = "test-secret"
     token = create_token({"user": "admin"}, secret)
     time.sleep(1)

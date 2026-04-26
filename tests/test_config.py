@@ -36,6 +36,7 @@ def test_data_dir_required(monkeypatch):
 
 def test_configure_logging_creates_log_file(tmp_path):
     import logging
+
     from concertpvr.logging_config import configure_logging
 
     configure_logging(tmp_path / "logs")

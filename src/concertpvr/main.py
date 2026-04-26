@@ -142,6 +142,7 @@ def create_app() -> FastAPI:
     app = FastAPI(title="concertpvr", version="0.1.0", lifespan=lifespan)
 
     from concertpvr.api.auth import AuthMiddleware
+
     app.add_middleware(AuthMiddleware)
 
     from concertpvr.api.health import router as health_router
@@ -177,6 +178,7 @@ def create_app() -> FastAPI:
     app.include_router(channel_watchers_router, prefix="/api")
 
     from concertpvr.api.auth import router as auth_router
+
     app.include_router(auth_router, prefix="/api")
 
     cfg = Config()

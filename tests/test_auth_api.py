@@ -100,9 +100,11 @@ def test_set_password_change_requires_current(client):
     client.post("/api/auth/set-password", json={"new_password": "old"})
     r = client.post("/api/auth/set-password", json={"new_password": "new"})
     assert r.status_code == 401
-    r = client.post("/api/auth/set-password",
-                    json={"new_password": "new", "current_password": "wrong"})
+    r = client.post(
+        "/api/auth/set-password", json={"new_password": "new", "current_password": "wrong"}
+    )
     assert r.status_code == 401
-    r = client.post("/api/auth/set-password",
-                    json={"new_password": "new", "current_password": "old"})
+    r = client.post(
+        "/api/auth/set-password", json={"new_password": "new", "current_password": "old"}
+    )
     assert r.status_code == 204

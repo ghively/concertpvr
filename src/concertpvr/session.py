@@ -24,6 +24,6 @@ def verify_token(token: str, secret: str, max_age_s: int) -> dict[str, Any] | No
         return None
     s = URLSafeTimedSerializer(secret, salt=_SALT)
     try:
-        return s.loads(token, max_age=max_age_s)
+        return s.loads(token, max_age=max_age_s)  # type: ignore[no-any-return]
     except (BadSignature, SignatureExpired):
         return None

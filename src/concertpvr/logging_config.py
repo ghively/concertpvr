@@ -32,7 +32,10 @@ def configure_logging(logs_dir: Path, level: str = "INFO") -> None:
     root.addHandler(console)
 
     file_handler = logging.handlers.RotatingFileHandler(
-        log_path, maxBytes=5 * 1024 * 1024, backupCount=5, encoding="utf-8",
+        log_path,
+        maxBytes=5 * 1024 * 1024,
+        backupCount=5,
+        encoding="utf-8",
     )
     file_handler.setFormatter(fmt)
     root.addHandler(file_handler)

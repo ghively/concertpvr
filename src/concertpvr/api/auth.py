@@ -74,7 +74,7 @@ def logout(response: Response) -> Response:
 def me(
     request: Request,
     db: Database = Depends(get_db),  # noqa: B008
-) -> dict:
+) -> dict[str, object]:
     pw_hash, secret = _read_settings(db)
     password_set = pw_hash is not None
     if not password_set:
@@ -98,11 +98,11 @@ def set_password(
             s.add(row)
             s.flush()
 
-        if row.password_hash is not None:
-            if not payload.current_password or not verify_password(
-                payload.current_password, row.password_hash
-            ):
-                raise HTTPException(status_code=401, detail="current password invalid")
+        if row.password_hash is not None and (
+            not payload.current_password
+            or not verify_password(payload.current_password, row.password_hash)
+        ):
+            raise HTTPException(status_code=401, detail="current password invalid")
 
         row.password_hash = hash_password(payload.new_password)
         if row.session_secret is None:
@@ -112,8 +112,12 @@ def set_password(
 
     token = create_token({"v": 1}, secret)
     response.set_cookie(
-        SESSION_COOKIE, token, max_age=SESSION_MAX_AGE_S,
-        httponly=True, samesite="lax", path="/",
+        SESSION_COOKIE,
+        token,
+        max_age=SESSION_MAX_AGE_S,
+        httponly=True,
+        samesite="lax",
+        path="/",
     )
     response.status_code = 204
     return response
@@ -123,11 +127,7 @@ def set_password(
 
 
 def _path_is_open(path: str) -> bool:
-    return (
-        path.startswith("/api/auth/")
-        or path == "/api/healthz"
-        or not path.startswith("/api/")
-    )
+    return path.startswith("/api/auth/") or path == "/api/healthz" or not path.startswith("/api/")
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
@@ -147,6 +147,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         payload = verify_token(token, secret, SESSION_MAX_AGE_S)
         if payload is None:
             from fastapi.responses import JSONResponse
+
             return JSONResponse({"detail": "not authenticated"}, status_code=401)
 
         return await call_next(request)
