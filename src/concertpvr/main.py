@@ -101,6 +101,30 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
         jobstore="memory",
     )
 
+    from concertpvr.channel_poller import poll_all_channel_watchers
+    from concertpvr.models import Settings as _SettingsModel
+
+    async def _channel_poll_job() -> None:
+        with app.state.db.session() as s:
+            settings_row = s.get(_SettingsModel, 1)
+            quality = settings_row.default_quality if settings_row else "bestvideo*+bestaudio/best"
+        await poll_all_channel_watchers(
+            db=app.state.db,
+            pool=app.state.pool,
+            buf=app.state.buffer,
+            bc=app.state.broadcaster,
+            default_quality=quality,
+        )
+
+    app.state.scheduler.add_job(
+        _channel_poll_job,
+        "interval",
+        seconds=60,
+        id="channel_poller",
+        replace_existing=True,
+        jobstore="memory",
+    )
+
     yield
 
     unregister_app()
@@ -144,6 +168,9 @@ def create_app() -> FastAPI:
     from concertpvr.api.ws_progress import router as ws_router
 
     app.include_router(ws_router)  # no /api prefix — /ws/... is its own namespace
+
+    from concertpvr.api.channel_watchers import router as channel_watchers_router
+    app.include_router(channel_watchers_router, prefix="/api")
 
     cfg = Config()
     if cfg.static_dir is not None and cfg.static_dir.is_dir():
