@@ -26,7 +26,7 @@ def fake_probe():
         thumbnail_url=None,
     )
 
-    async def _async_probe(_url):
+    async def _async_probe(_url, **_kwargs):
         return info
 
     with (

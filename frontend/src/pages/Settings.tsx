@@ -130,7 +130,10 @@ export default function SettingsPage() {
             onChange={(e) => field("max_concurrent_recordings")(Number(e.target.value))}
           />
         </Labeled>
-        <Labeled label="Auto-prune buffer when disk full">
+        <Labeled
+          label="Auto-prune buffer when disk full"
+          help="When the buffer drive drops below 5% free, prune oldest fragments across all streams (ignores per-stream retention)."
+        >
           <button
             onClick={() => field("auto_prune_when_full")(!merged.auto_prune_when_full)}
             className={cn(

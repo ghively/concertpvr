@@ -50,14 +50,44 @@ def get_recording(
 
 
 @router.post("/recordings/{recording_id}/finalize", response_model=RecordingRead)
-def finalize_recording(
+async def finalize_recording(
     recording_id: int,
     db: Database = Depends(get_db),  # noqa: B008
 ) -> Recording:
-    """Mark a recording complete + capture chapter metadata from its path.
+    """Mark a recording complete + capture chapter metadata + probe dimensions.
 
     Triggers the auto_segment listener which creates draft Segments.
     """
+    # Snapshot path so we can probe outside the session
+    with db.session() as s:
+        rec = s.get(Recording, recording_id)
+        if rec is None:
+            raise HTTPException(status_code=404, detail="recording not found")
+        path_str = rec.path
+
+    # Probe dimensions if the recording is a single file (scheduled output).
+    # Buffer recordings are directories of .ts fragments; ffprobe doesn't handle those.
+    rec_path = Path(path_str)
+    probed_w: int | None = None
+    probed_h: int | None = None
+    probed_fps: int | None = None
+    probed_duration_s: int = 0
+    probed_size_bytes: int = 0
+    if rec_path.is_file():
+        import contextlib
+
+        from concertpvr.ffmpeg import FFmpegError, Splitter
+        from concertpvr.process import AsyncSubprocessRunner
+
+        with contextlib.suppress(FFmpegError):
+            info = await Splitter(AsyncSubprocessRunner()).probe(rec_path)
+            probed_w = info.width
+            probed_h = info.height
+            probed_fps = int(round(info.fps))
+            probed_duration_s = int(info.duration_s)
+        with contextlib.suppress(OSError):
+            probed_size_bytes = rec_path.stat().st_size
+
     with db.session() as s:
         rec = s.get(Recording, recording_id)
         if rec is None:
@@ -65,6 +95,12 @@ def finalize_recording(
         chapters = extract_chapters_json(Path(rec.path))
         if chapters is not None:
             rec.raw_chapters_json = chapters
+        if probed_w is not None:
+            rec.width = probed_w
+            rec.height = probed_h
+            rec.fps = probed_fps
+            rec.duration_s = probed_duration_s
+            rec.size_bytes = probed_size_bytes
         rec.status = "complete"
         rec.ended_at = _dt.datetime.now(_dt.UTC)
         s.flush()

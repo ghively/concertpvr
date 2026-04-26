@@ -32,18 +32,20 @@ class RecorderWorker:
         quality_format: str,
         runner: ProcessRunner,
         on_progress: Callable[[RecorderProgress], Awaitable[None]],
+        cookies_path: Path | None = None,
     ) -> None:
         self.stream_id = stream_id
         self.url = url
         self.output_dir = output_dir
         self.quality_format = quality_format
+        self.cookies_path = cookies_path
         self._runner = runner
         self._on_progress = on_progress
         self._proc: ManagedProcess | None = None
         self._stop_requested = False
 
     def _build_argv(self) -> list[str]:
-        return [
+        argv = [
             "yt-dlp",
             "--live-from-start",
             "--hls-prefer-native",
@@ -53,8 +55,11 @@ class RecorderWorker:
             self.quality_format,
             "-o",
             str(self.output_dir / "%(epoch)s_%(id)s.%(ext)s"),
-            self.url,
         ]
+        if self.cookies_path is not None and Path(self.cookies_path).exists():
+            argv.extend(["--cookies", str(self.cookies_path)])
+        argv.append(self.url)
+        return argv
 
     async def run(self) -> int:
         self.output_dir.mkdir(parents=True, exist_ok=True)
