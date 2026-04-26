@@ -32,3 +32,18 @@ def test_data_dir_required(monkeypatch):
     with pytest.raises(ValidationError) as exc_info:
         Config()
     assert "data_dir" in str(exc_info.value).lower()
+
+
+def test_configure_logging_creates_log_file(tmp_path):
+    import logging
+    from concertpvr.logging_config import configure_logging
+
+    configure_logging(tmp_path / "logs")
+    logging.getLogger("concertpvr.test").info("hello")
+
+    log_file = tmp_path / "logs" / "concertpvr.log"
+    assert log_file.exists()
+    assert "hello" in log_file.read_text()
+
+    # Cleanup the global logging state so other tests aren't affected
+    logging.getLogger().handlers = []

@@ -3,9 +3,11 @@
 import uvicorn
 
 from concertpvr.config import Config
+from concertpvr.logging_config import configure_logging
 
 if __name__ == "__main__":
     cfg = Config()
+    configure_logging(cfg.logs_dir)
     uvicorn.run(
         "concertpvr.main:create_app",
         factory=True,
