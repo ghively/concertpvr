@@ -28,6 +28,19 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
 
     mark_interrupted_on_startup(app.state.db)
 
+    # Eagerly ensure a session_secret exists so token-issuance is never a race.
+    from concertpvr.models import Settings as _SettingsModel
+    from concertpvr.session import generate_secret as _generate_secret
+
+    with app.state.db.session() as _s:
+        _row = _s.get(_SettingsModel, 1)
+        if _row is None:
+            _row = _SettingsModel(id=1)
+            _s.add(_row)
+            _s.flush()
+        if _row.session_secret is None:
+            _row.session_secret = _generate_secret()
+
     from concertpvr.models import Settings as SettingsModel
 
     with app.state.db.session() as s:
