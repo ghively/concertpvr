@@ -45,6 +45,22 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
     app.state.scheduler = build_scheduler(app.state.db)
     app.state.scheduler.start()
 
+    from concertpvr.process import AsyncSubprocessRunner
+    from concertpvr.schedule_manager import ScheduleManager
+    from concertpvr.scheduled_runner import register_app, unregister_app
+
+    app.state.schedule_manager = ScheduleManager(app.state.scheduler)
+    register_app(
+        db=app.state.db,
+        pool=app.state.pool,
+        buf=app.state.buffer,
+        bc=app.state.broadcaster,
+        runner_factory=AsyncSubprocessRunner,
+        staging_root=cfg.staging_dir,
+    )
+
+    app.state.schedule_manager.rehydrate_from_db(app.state.db)
+
     from concertpvr.retention import build_prune_job
 
     app.state.scheduler.add_job(
@@ -58,6 +74,7 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
 
     yield
 
+    unregister_app()
     app.state.scheduler.shutdown(wait=False)
     import asyncio as _asyncio
 
@@ -82,6 +99,10 @@ def create_app() -> FastAPI:
     from concertpvr.api.recordings import router as recordings_router
 
     app.include_router(recordings_router, prefix="/api")
+
+    from concertpvr.api.schedules import router as schedules_router
+
+    app.include_router(schedules_router, prefix="/api")
 
     from concertpvr.api.ws_progress import router as ws_router
 
