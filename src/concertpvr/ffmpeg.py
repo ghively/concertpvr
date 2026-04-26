@@ -58,14 +58,13 @@ class Splitter:
         self, input_path: Path, output_path: Path, start_s: float, end_s: float
     ) -> None:
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        duration_s = end_s - start_s
         argv = [
             "ffmpeg", "-y",
             "-ss", f"{start_s:.3f}",
+            "-to", f"{end_s:.3f}",
             "-i", str(input_path),
-            "-t", f"{duration_s:.3f}",
-            "-c:v", "libx264",
-            "-c:a", "aac",
+            "-c", "copy",
+            "-avoid_negative_ts", "make_zero",
             str(output_path),
         ]
         proc = await self._runner.spawn(argv)
