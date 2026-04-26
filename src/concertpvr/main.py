@@ -61,6 +61,32 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
 
     app.state.schedule_manager.rehydrate_from_db(app.state.db)
 
+    from concertpvr.emby import EmbyClient
+    from concertpvr.models import Settings as SettingsModel
+    from concertpvr.publisher import PublishWorker
+
+    with app.state.db.session() as s:
+        settings_row = s.get(SettingsModel, 1)
+        emby_url = settings_row.emby_url if settings_row else None
+        emby_key = settings_row.emby_api_key if settings_row else None
+        folder_pattern = (
+            settings_row.folder_pattern if settings_row
+            else "{artist} - {festival} ({year})"
+        )
+
+    app.state.emby_client = EmbyClient(emby_url, emby_key)
+
+    def _publisher_factory() -> PublishWorker:
+        return PublishWorker(
+            db=app.state.db,
+            runner=AsyncSubprocessRunner(),
+            publish_root=cfg.publish_dir,
+            folder_pattern=folder_pattern,
+            emby_client=app.state.emby_client,
+        )
+
+    app.state.publisher_factory = _publisher_factory
+
     from concertpvr.retention import build_prune_job
 
     app.state.scheduler.add_job(
@@ -103,6 +129,10 @@ def create_app() -> FastAPI:
     from concertpvr.api.schedules import router as schedules_router
 
     app.include_router(schedules_router, prefix="/api")
+
+    from concertpvr.api.segments import router as segments_router
+
+    app.include_router(segments_router, prefix="/api")
 
     from concertpvr.api.ws_progress import router as ws_router
 
