@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useStreams, useDeleteStream, useToggleWatch, useWatchSubscription } from "@/lib/query";
+import { useStreams, useDeleteStream, useToggleWatch, useWatchSubscription, useRecordings, useSettings } from "@/lib/query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,11 @@ import type { Stream } from "@/lib/api";
 export default function StreamsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const { data, isLoading } = useStreams();
+  const { data: recordings } = useRecordings();
+  const { data: settings } = useSettings();
+  const activeCount = (recordings ?? []).filter((r) => r.status === "recording").length;
+  const max = settings?.max_concurrent_recordings ?? 4;
+  const poolFull = activeCount >= max;
 
   return (
     <div>
@@ -30,14 +35,14 @@ export default function StreamsPage() {
       )}
       {data && data.length > 0 && (
         <div className="space-y-2">
-          {data.map((s) => <StreamRow key={s.id} stream={s} />)}
+          {data.map((s) => <StreamRow key={s.id} stream={s} poolFull={poolFull} />)}
         </div>
       )}
     </div>
   );
 }
 
-function StreamRow({ stream }: { stream: Stream }) {
+function StreamRow({ stream, poolFull }: { stream: Stream; poolFull: boolean }) {
   const { data: sub } = useWatchSubscription(stream.id);
   const toggle = useToggleWatch(stream.id);
   const del = useDeleteStream();
@@ -63,9 +68,10 @@ function StreamRow({ stream }: { stream: Stream }) {
       <div className="flex items-center gap-2 flex-shrink-0">
         <Button
           onClick={() => toggle.mutate({ enabled: !enabled })}
-          disabled={toggle.isPending}
+          disabled={toggle.isPending || (!enabled && poolFull)}
+          title={!enabled && poolFull ? "Max concurrent recordings reached" : undefined}
         >
-          {enabled ? "Stop buffer" : "Start buffer"}
+          {enabled ? "Stop buffer" : poolFull ? "Pool full" : "Start buffer"}
         </Button>
         <Button
           variant="ghost"
