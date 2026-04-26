@@ -159,3 +159,21 @@ class Setlist(Base):
     end_s: Mapped[int] = mapped_column(Integer, nullable=False)
 
     recording = relationship("Recording")
+
+
+class ChannelWatcher(Base):
+    __tablename__ = "channel_watchers"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    channel_url: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    channel_name: Mapped[str] = mapped_column(String, nullable=False)
+    avatar_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    title_filter: Mapped[str | None] = mapped_column(String, nullable=True)
+    quality_cap: Mapped[str | None] = mapped_column(String, nullable=True)
+    retention_days: Mapped[int] = mapped_column(Integer, default=7, nullable=False)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    last_polled: Mapped[_dt.datetime | None] = mapped_column(DateTime, nullable=True)
+    last_live_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    added_at: Mapped[_dt.datetime] = mapped_column(
+        DateTime, nullable=False, default=lambda: _dt.datetime.now(_dt.UTC)
+    )
