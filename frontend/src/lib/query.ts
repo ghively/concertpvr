@@ -191,3 +191,46 @@ export function usePublishSegment(recordingId: number) {
     onSuccess: () => qc.invalidateQueries({ queryKey: segmentsKeys.forRecording(recordingId) }),
   });
 }
+
+import {
+  type ChannelWatcher,
+  type ChannelWatcherCreate,
+  type ChannelWatcherPatch,
+  watchersApi,
+} from "./api";
+
+export const watchersKeys = {
+  all: ["channel-watchers"] as const,
+};
+
+export function useChannelWatchers() {
+  return useQuery<ChannelWatcher[]>({
+    queryKey: watchersKeys.all,
+    queryFn: () => watchersApi.list(),
+    refetchInterval: 60_000,
+  });
+}
+
+export function useCreateChannelWatcher() {
+  const qc = useQueryClient();
+  return useMutation<ChannelWatcher, Error, ChannelWatcherCreate>({
+    mutationFn: (p) => watchersApi.create(p),
+    onSuccess: () => qc.invalidateQueries({ queryKey: watchersKeys.all }),
+  });
+}
+
+export function useUpdateChannelWatcher() {
+  const qc = useQueryClient();
+  return useMutation<ChannelWatcher, Error, { id: number; patch: ChannelWatcherPatch }>({
+    mutationFn: ({ id, patch }) => watchersApi.patch(id, patch),
+    onSuccess: () => qc.invalidateQueries({ queryKey: watchersKeys.all }),
+  });
+}
+
+export function useDeleteChannelWatcher() {
+  const qc = useQueryClient();
+  return useMutation<void, Error, number>({
+    mutationFn: (id) => watchersApi.delete(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: watchersKeys.all }),
+  });
+}
