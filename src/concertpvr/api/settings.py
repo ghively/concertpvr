@@ -1,6 +1,6 @@
 """Settings singleton CRUD."""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 
 from concertpvr.db import Database
 from concertpvr.deps import get_db
@@ -29,6 +29,7 @@ def read_settings(db: Database = Depends(get_db)) -> Settings:  # noqa: B008
 @router.patch("/settings", response_model=SettingsRead)
 def patch_settings(
     patch: SettingsPatch,
+    request: Request,
     db: Database = Depends(get_db),  # noqa: B008
 ) -> Settings:
     updates = patch.model_dump(exclude_unset=True)
@@ -43,4 +44,9 @@ def patch_settings(
         s.flush()
         s.refresh(row)
         s.expunge(row)
+
+    from concertpvr.emby import EmbyClient
+
+    request.app.state.emby_client = EmbyClient(row.emby_url, row.emby_api_key)
+
     return row

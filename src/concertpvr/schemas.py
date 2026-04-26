@@ -130,3 +130,72 @@ class SchedulePatch(BaseModel):
     ends_at: _dt.datetime | None = None
     artist: str | None = None
     status: Literal["pending", "cancelled"] | None = None  # only these are user-settable
+
+
+class SegmentRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    recording_id: int
+    artist: str
+    title: str | None
+    start_s: int
+    end_s: int
+    source: Literal["chapter", "setlist", "manual"]
+    status: Literal["draft", "publishing", "published", "publish_failed"]
+    error: str | None
+    emby_path: str | None
+    poster_path: str | None
+    nfo_path: str | None
+
+
+class SegmentCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    recording_id: int
+    artist: str
+    title: str | None = None
+    start_s: int
+    end_s: int
+    source: Literal["chapter", "setlist", "manual"] = "manual"
+
+
+class SegmentPatch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    artist: str | None = None
+    title: str | None = None
+    start_s: int | None = None
+    end_s: int | None = None
+
+
+class SetlistRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    recording_id: int
+    artist: str
+    start_s: int
+    end_s: int
+
+
+class SetlistEntry(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    artist: str
+    start_s: int
+    end_s: int
+
+
+class SetlistReplaceRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    entries: list[SetlistEntry]
+
+
+class PublishOptions(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    festival: str | None = None
+    venue: str | None = None
+    year: int | None = None

@@ -23,7 +23,9 @@
       "Bash(git tag *)",
       "Bash(git show-ref *)",
       "Bash(git *)",
-      "Bash(grep -E \"\\\\.py$\")"
+      "Bash(grep -E \"\\\\.py$\")",
+      "Bash(ffmpeg -version)",
+      "Bash(ffprobe *)"
     ]
   }
 }

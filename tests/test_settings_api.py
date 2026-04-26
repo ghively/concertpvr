@@ -45,3 +45,17 @@ def test_patch_settings_rejects_unknown_fields(client):
 def test_patch_settings_validates_types(client):
     r = client.patch("/api/settings", json={"max_concurrent_recordings": "not-a-number"})
     assert r.status_code == 422
+
+
+def test_patching_emby_config_rebuilds_client(client):
+    assert client.app.state.emby_client.configured is False
+
+    client.patch(
+        "/api/settings",
+        json={
+            "emby_url": "http://emby:8096",
+            "emby_api_key": "secret123",
+        },
+    )
+
+    assert client.app.state.emby_client.configured is True
