@@ -1,40 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { PosterCard } from "@/components/PosterCard";
-import { api } from "@/lib/api";
-import type { Segment } from "@/lib/api";
+import { usePublishedSegments } from "@/lib/query";
 
 export default function LibraryPage() {
-  const [segments, setSegments] = useState<Segment[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data, isLoading } = usePublishedSegments();
   const [filter, setFilter] = useState("");
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      try {
-        const recordings = await api.get<{ id: number }[]>("/api/recordings");
-        const all: Segment[] = [];
-        for (const rec of recordings) {
-          const segs = await api.get<Segment[]>(`/api/segments?recording_id=${rec.id}`);
-          all.push(...segs);
-        }
-        if (!cancelled) setSegments(all.filter((s) => s.status === "published"));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
-
-  const visible = segments.filter((s) => {
+  const visible = (data ?? []).filter((s) => {
     if (!filter.trim()) return true;
     const q = filter.toLowerCase();
-    return (
-      s.artist.toLowerCase().includes(q) || (s.title ?? "").toLowerCase().includes(q)
-    );
+    return s.artist.toLowerCase().includes(q) || (s.title ?? "").toLowerCase().includes(q);
   });
 
   return (
@@ -50,8 +27,8 @@ export default function LibraryPage() {
         />
       </div>
 
-      {loading && <p className="text-ink-dim text-xs">Loading…</p>}
-      {!loading && visible.length === 0 && (
+      {isLoading && <p className="text-ink-dim text-xs">Loading…</p>}
+      {!isLoading && visible.length === 0 && (
         <Card className="text-center py-8 text-ink-dim text-xs">
           No published segments yet. Open a recording in the Timeline editor to publish one.
         </Card>

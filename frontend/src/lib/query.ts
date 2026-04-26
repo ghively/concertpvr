@@ -142,6 +142,7 @@ export function useDeleteSchedule() {
 }
 
 import {
+  api,
   type Segment,
   type SegmentCreate,
   type SegmentPatch,
@@ -189,6 +190,13 @@ export function usePublishSegment(recordingId: number) {
   return useMutation<Segment, Error, { id: number; options: PublishOptions }>({
     mutationFn: ({ id, options }) => segmentsApi.publish(id, options),
     onSuccess: () => qc.invalidateQueries({ queryKey: segmentsKeys.forRecording(recordingId) }),
+  });
+}
+
+export function usePublishedSegments() {
+  return useQuery<Segment[]>({
+    queryKey: ["segments", "published"],
+    queryFn: () => api.get<Segment[]>("/api/segments?status=published"),
   });
 }
 
