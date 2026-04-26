@@ -3,7 +3,7 @@ import datetime as dt
 from sqlalchemy import text
 
 from concertpvr.db import Database
-from concertpvr.models import Base, Recording, Schedule, Settings, Stream, WatchSubscription
+from concertpvr.models import Base, Recording, Schedule, Segment, Setlist, Settings, Stream, WatchSubscription
 
 
 def test_database_connects_and_pings(tmp_path):
@@ -115,3 +115,69 @@ def test_schedule_round_trip(tmp_path):
         assert loaded.artist == "Phish"
         assert loaded.status == "pending"
         assert loaded.recording_id is None
+
+
+def test_segment_round_trip(tmp_path):
+    db = Database(f"sqlite:///{tmp_path / 'test.db'}")
+    Base.metadata.create_all(db.engine)
+
+    with db.session() as s:
+        stream = Stream(kind="live", youtube_id="seg1", url="u", title="t", channel_name="c")
+        s.add(stream)
+        s.flush()
+        rec = Recording(
+            stream_id=stream.id,
+            started_at=dt.datetime(2026, 4, 25, 12, 0, tzinfo=dt.UTC),
+            path="/buf/1",
+            is_buffer=True,
+        )
+        s.add(rec)
+        s.flush()
+
+        seg = Segment(
+            recording_id=rec.id,
+            artist="Phoebe Bridgers",
+            title="Mojave Set",
+            start_s=21,
+            end_s=94 * 60 + 21,
+            source="chapter",
+        )
+        s.add(seg)
+        s.flush()
+        sid = seg.id
+
+    with db.session() as s:
+        loaded = s.get(Segment, sid)
+        assert loaded is not None
+        assert loaded.artist == "Phoebe Bridgers"
+        assert loaded.status == "draft"
+        assert loaded.source == "chapter"
+        assert loaded.emby_path is None
+
+
+def test_setlist_round_trip(tmp_path):
+    db = Database(f"sqlite:///{tmp_path / 'test.db'}")
+    Base.metadata.create_all(db.engine)
+
+    with db.session() as s:
+        stream = Stream(kind="live", youtube_id="set1", url="u", title="t", channel_name="c")
+        s.add(stream)
+        s.flush()
+        rec = Recording(
+            stream_id=stream.id,
+            started_at=dt.datetime(2026, 4, 25, 12, 0, tzinfo=dt.UTC),
+            path="/buf/1",
+            is_buffer=True,
+        )
+        s.add(rec)
+        s.flush()
+
+        sl = Setlist(recording_id=rec.id, artist="Goose", start_s=111 * 60, end_s=222 * 60)
+        s.add(sl)
+        s.flush()
+        slid = sl.id
+
+    with db.session() as s:
+        loaded = s.get(Setlist, slid)
+        assert loaded is not None
+        assert loaded.artist == "Goose"

@@ -101,6 +101,7 @@ class Recording(Base):
     status: Mapped[str] = mapped_column(String, nullable=False, default="recording")
     is_buffer: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     error: Mapped[str | None] = mapped_column(String, nullable=True)
+    raw_chapters_json: Mapped[str | None] = mapped_column(String, nullable=True)
 
     stream = relationship("Stream", back_populates="recordings")
 
@@ -122,4 +123,39 @@ class Schedule(Base):
     )
 
     stream = relationship("Stream")
+    recording = relationship("Recording")
+
+
+class Segment(Base):
+    __tablename__ = "segments"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    recording_id: Mapped[int] = mapped_column(
+        ForeignKey("recordings.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    artist: Mapped[str] = mapped_column(String, nullable=False)
+    title: Mapped[str | None] = mapped_column(String, nullable=True)
+    start_s: Mapped[int] = mapped_column(Integer, nullable=False)
+    end_s: Mapped[int] = mapped_column(Integer, nullable=False)
+    source: Mapped[str] = mapped_column(String, nullable=False)
+    status: Mapped[str] = mapped_column(String, nullable=False, default="draft")
+    error: Mapped[str | None] = mapped_column(String, nullable=True)
+    emby_path: Mapped[str | None] = mapped_column(String, nullable=True)
+    poster_path: Mapped[str | None] = mapped_column(String, nullable=True)
+    nfo_path: Mapped[str | None] = mapped_column(String, nullable=True)
+
+    recording = relationship("Recording")
+
+
+class Setlist(Base):
+    __tablename__ = "setlists"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    recording_id: Mapped[int] = mapped_column(
+        ForeignKey("recordings.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    artist: Mapped[str] = mapped_column(String, nullable=False)
+    start_s: Mapped[int] = mapped_column(Integer, nullable=False)
+    end_s: Mapped[int] = mapped_column(Integer, nullable=False)
+
     recording = relationship("Recording")
