@@ -39,6 +39,16 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
     app.state.scheduler = build_scheduler(app.state.db)
     app.state.scheduler.start()
 
+    from concertpvr.retention import build_prune_job
+    app.state.scheduler.add_job(
+        build_prune_job(app.state.db, app.state.buffer),
+        "interval",
+        minutes=5,
+        id="buffer_retention_prune",
+        replace_existing=True,
+        jobstore="memory",
+    )
+
     yield
 
     app.state.scheduler.shutdown(wait=False)
