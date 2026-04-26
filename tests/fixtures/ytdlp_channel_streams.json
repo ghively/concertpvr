@@ -1,0 +1,23 @@
+{
+  "_type": "playlist",
+  "id": "UCNPRMusic",
+  "title": "NPR Music — Streams",
+  "uploader": "NPR Music",
+  "thumbnail": "https://example.com/avatar.jpg",
+  "entries": [
+    {
+      "id": "live123",
+      "title": "Tiny Desk Live — Jason Isbell",
+      "url": "https://www.youtube.com/watch?v=live123",
+      "is_live": true,
+      "channel": "NPR Music"
+    },
+    {
+      "id": "old456",
+      "title": "Past Tiny Desk concert",
+      "url": "https://www.youtube.com/watch?v=old456",
+      "is_live": false,
+      "channel": "NPR Music"
+    }
+  ]
+}

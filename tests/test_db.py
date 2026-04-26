@@ -5,6 +5,7 @@ from sqlalchemy import text
 from concertpvr.db import Database
 from concertpvr.models import (
     Base,
+    ChannelWatcher,
     Recording,
     Schedule,
     Segment,
@@ -190,3 +191,27 @@ def test_setlist_round_trip(tmp_path):
         loaded = s.get(Setlist, slid)
         assert loaded is not None
         assert loaded.artist == "Goose"
+
+
+def test_channel_watcher_round_trip(tmp_db):
+    Base.metadata.create_all(tmp_db.engine)
+
+    with tmp_db.session() as s:
+        w = ChannelWatcher(
+            channel_url="https://www.youtube.com/@nprmusic",
+            channel_name="NPR Music",
+            title_filter="tiny desk",
+            retention_days=14,
+        )
+        s.add(w)
+        s.flush()
+        wid = w.id
+
+    with tmp_db.session() as s:
+        loaded = s.get(ChannelWatcher, wid)
+        assert loaded is not None
+        assert loaded.channel_name == "NPR Music"
+        assert loaded.title_filter == "tiny desk"
+        assert loaded.enabled is True
+        assert loaded.last_polled is None
+        assert loaded.last_live_id is None

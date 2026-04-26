@@ -230,3 +230,41 @@ export const schedulesApi = {
   patch: (id: number, p: SchedulePatch) => api.patch<Schedule>(`/api/schedules/${id}`, p),
   delete: (id: number) => api.delete<void>(`/api/schedules/${id}`),
 };
+
+// ── Channel Watchers ────────────────────────────────────────────────────────
+
+export type ChannelWatcher = {
+  id: number;
+  channel_url: string;
+  channel_name: string;
+  avatar_url: string | null;
+  title_filter: string | null;
+  quality_cap: string | null;
+  retention_days: number;
+  enabled: boolean;
+  last_polled: string | null;
+  last_live_id: string | null;
+  added_at: string;
+};
+
+export type ChannelWatcherCreate = {
+  channel_url: string;
+  title_filter?: string | null;
+  quality_cap?: string | null;
+  retention_days?: number;
+};
+
+export type ChannelWatcherPatch = {
+  title_filter?: string | null;
+  quality_cap?: string | null;
+  retention_days?: number;
+  enabled?: boolean;
+};
+
+export const watchersApi = {
+  list: () => api.get<ChannelWatcher[]>("/api/channel-watchers"),
+  create: (p: ChannelWatcherCreate) => api.post<ChannelWatcher>("/api/channel-watchers", p),
+  patch: (id: number, p: ChannelWatcherPatch) =>
+    api.patch<ChannelWatcher>(`/api/channel-watchers/${id}`, p),
+  delete: (id: number) => api.delete<void>(`/api/channel-watchers/${id}`),
+};

@@ -199,3 +199,39 @@ class PublishOptions(BaseModel):
     festival: str | None = None
     venue: str | None = None
     year: int | None = None
+
+
+class ChannelWatcherRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    channel_url: str
+    channel_name: str
+    avatar_url: str | None
+    title_filter: str | None
+    quality_cap: str | None
+    retention_days: int
+    enabled: bool
+    last_polled: _dt.datetime | None
+    last_live_id: str | None
+    added_at: _dt.datetime
+
+
+class ChannelWatcherCreate(BaseModel):
+    """Payload — server probes channel_url to populate channel_name + avatar."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    channel_url: str
+    title_filter: str | None = None
+    quality_cap: str | None = None
+    retention_days: int = 7
+
+
+class ChannelWatcherPatch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    title_filter: str | None = None
+    quality_cap: str | None = None
+    retention_days: int | None = None
+    enabled: bool | None = None

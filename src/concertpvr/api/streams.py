@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import datetime as _dt
-
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -11,11 +9,9 @@ from sqlalchemy.exc import IntegrityError
 from concertpvr.buffer import BufferManager
 from concertpvr.db import Database
 from concertpvr.deps import get_broadcaster, get_buffer, get_db, get_pool
-from concertpvr.models import Recording, Stream, WatchSubscription
 from concertpvr.models import Settings as SettingsModel
+from concertpvr.models import Stream, WatchSubscription
 from concertpvr.pool import RecorderPool
-from concertpvr.process import AsyncSubprocessRunner
-from concertpvr.recorder import RecorderProgress, RecorderWorker
 from concertpvr.schemas import (
     StreamCreate,
     StreamRead,
@@ -156,37 +152,14 @@ async def _start_recording(
     buf: BufferManager,
     bc: Broadcaster,
 ) -> None:
-    output_dir = buf.stream_dir(stream_id)
-    runner = AsyncSubprocessRunner()
+    from concertpvr.recording_starter import start_buffer_recording
 
-    async def on_progress(p: RecorderProgress) -> None:
-        await bc.publish(
-            f"streams.{stream_id}.progress",
-            {
-                "bytes_total": p.bytes_total,
-                "bitrate_bps": p.bitrate_bps,
-                "duration_s": p.duration_s,
-                "fragment_count": p.fragment_count,
-            },
-        )
-
-    worker = RecorderWorker(
+    await start_buffer_recording(
         stream_id=stream_id,
         url=url,
-        output_dir=output_dir,
         quality_format=quality,
-        runner=runner,
-        on_progress=on_progress,
+        db=db,
+        pool=pool,
+        buf=buf,
+        bc=bc,
     )
-
-    with db.session() as s:
-        rec = Recording(
-            stream_id=stream_id,
-            started_at=_dt.datetime.now(_dt.UTC),
-            path=str(output_dir),
-            status="recording",
-            is_buffer=True,
-        )
-        s.add(rec)
-
-    await pool.start(worker)
