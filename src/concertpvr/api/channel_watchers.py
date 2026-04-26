@@ -10,7 +10,9 @@ from concertpvr.db import Database
 from concertpvr.deps import get_db
 from concertpvr.models import ChannelWatcher
 from concertpvr.schemas import (
-    ChannelWatcherCreate, ChannelWatcherPatch, ChannelWatcherRead,
+    ChannelWatcherCreate,
+    ChannelWatcherPatch,
+    ChannelWatcherRead,
 )
 from concertpvr.ytdlp_channels import ChannelProbeError, probe_channel
 
@@ -18,7 +20,8 @@ router = APIRouter()
 
 
 @router.post(
-    "/channel-watchers", response_model=ChannelWatcherRead,
+    "/channel-watchers",
+    response_model=ChannelWatcherRead,
     status_code=status.HTTP_201_CREATED,
 )
 async def create_watcher(

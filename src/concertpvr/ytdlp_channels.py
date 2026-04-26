@@ -5,8 +5,9 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass
+from typing import Any
 
-import yt_dlp
+import yt_dlp  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +39,7 @@ def _streams_url(channel_url: str) -> str:
     return f"{base}/streams"
 
 
-def _extract_sync(url: str) -> dict:
+def _extract_sync(url: str) -> dict[str, Any]:  # noqa: B008
     opts = {
         "quiet": True,
         "no_warnings": True,
@@ -47,7 +48,8 @@ def _extract_sync(url: str) -> dict:
     }
     ydl = yt_dlp.YoutubeDL(opts)
     try:
-        return ydl.extract_info(url, download=False)
+        info = ydl.extract_info(url, download=False)
+        return info if isinstance(info, dict) else {}
     finally:
         ydl.close()
 
@@ -64,18 +66,24 @@ async def fetch_channel_live_broadcasts(channel_url: str) -> list[BroadcastInfo]
         return []
     entries = data.get("entries") or []
     out: list[BroadcastInfo] = []
-    for e in entries:
-        if not isinstance(e, dict):
+    for entry in entries:
+        if not isinstance(entry, dict):
             continue
-        if not e.get("is_live"):
+        if not entry.get("is_live"):
             continue
-        out.append(BroadcastInfo(
-            youtube_id=e.get("id", ""),
-            url=e.get("url") or e.get("webpage_url") or f"https://www.youtube.com/watch?v={e.get('id', '')}",
-            title=e.get("title", ""),
-            channel_name=e.get("channel") or data.get("uploader") or data.get("title", ""),
-            is_live=True,
-        ))
+        out.append(
+            BroadcastInfo(
+                youtube_id=str(entry.get("id", "")),
+                url=str(
+                    entry.get("url")
+                    or entry.get("webpage_url")
+                    or f"https://www.youtube.com/watch?v={entry.get('id', '')}"
+                ),
+                title=str(entry.get("title", "")),
+                channel_name=str(entry.get("channel") or data.get("uploader") or data.get("title", "")),
+                is_live=True,
+            )
+        )
     return out
 
 
@@ -92,7 +100,7 @@ async def probe_channel(channel_url: str) -> ChannelInfo:
         raise ChannelProbeError("no info returned")
 
     return ChannelInfo(
-        channel_name=data.get("uploader") or data.get("title", "Unknown"),
-        canonical_url=data.get("webpage_url", streams_url),
-        avatar_url=data.get("thumbnail"),
+        channel_name=str(data.get("uploader") or data.get("title", "Unknown")),
+        canonical_url=str(data.get("webpage_url", streams_url)),
+        avatar_url=str(data.get("thumbnail")) if data.get("thumbnail") else None,
     )

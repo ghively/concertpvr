@@ -25,18 +25,20 @@ def fake_probe():
     async def _async_probe(_url):
         return info
 
-    with patch("concertpvr.api.channel_watchers.probe_channel",
-               side_effect=_async_probe) as m:
+    with patch("concertpvr.api.channel_watchers.probe_channel", side_effect=_async_probe) as m:
         yield m, info
 
 
 def test_post_creates_watcher_with_probed_metadata(client, fake_probe):
     _, info = fake_probe
-    r = client.post("/api/channel-watchers", json={
-        "channel_url": "https://www.youtube.com/@nprmusic",
-        "title_filter": "tiny desk",
-        "retention_days": 14,
-    })
+    r = client.post(
+        "/api/channel-watchers",
+        json={
+            "channel_url": "https://www.youtube.com/@nprmusic",
+            "title_filter": "tiny desk",
+            "retention_days": 14,
+        },
+    )
     assert r.status_code == 201
     body = r.json()
     assert body["channel_name"] == "NPR Music"
@@ -53,8 +55,9 @@ def test_post_rejects_when_probe_fails(client):
         raise ChannelProbeError("not a channel")
 
     with patch("concertpvr.api.channel_watchers.probe_channel", side_effect=_raise):
-        r = client.post("/api/channel-watchers",
-                        json={"channel_url": "https://www.youtube.com/@bad"})
+        r = client.post(
+            "/api/channel-watchers", json={"channel_url": "https://www.youtube.com/@bad"}
+        )
     assert r.status_code == 400
 
 
@@ -65,18 +68,19 @@ def test_post_rejects_duplicate_url(client, fake_probe):
 
 
 def test_get_lists_watchers(client, fake_probe):
-    client.post("/api/channel-watchers",
-                json={"channel_url": "https://www.youtube.com/@nprmusic"})
+    client.post("/api/channel-watchers", json={"channel_url": "https://www.youtube.com/@nprmusic"})
     r = client.get("/api/channel-watchers")
     assert r.status_code == 200
     assert len(r.json()) == 1
 
 
 def test_patch_updates_filter_and_enabled(client, fake_probe):
-    created = client.post("/api/channel-watchers",
-                          json={"channel_url": "https://www.youtube.com/@nprmusic"}).json()
-    r = client.patch(f"/api/channel-watchers/{created['id']}",
-                     json={"title_filter": "session", "enabled": False})
+    created = client.post(
+        "/api/channel-watchers", json={"channel_url": "https://www.youtube.com/@nprmusic"}
+    ).json()
+    r = client.patch(
+        f"/api/channel-watchers/{created['id']}", json={"title_filter": "session", "enabled": False}
+    )
     assert r.status_code == 200
     body = r.json()
     assert body["title_filter"] == "session"
@@ -84,8 +88,9 @@ def test_patch_updates_filter_and_enabled(client, fake_probe):
 
 
 def test_delete_watcher(client, fake_probe):
-    created = client.post("/api/channel-watchers",
-                          json={"channel_url": "https://www.youtube.com/@nprmusic"}).json()
+    created = client.post(
+        "/api/channel-watchers", json={"channel_url": "https://www.youtube.com/@nprmusic"}
+    ).json()
     r = client.delete(f"/api/channel-watchers/{created['id']}")
     assert r.status_code == 204
     r = client.get(f"/api/channel-watchers/{created['id']}")

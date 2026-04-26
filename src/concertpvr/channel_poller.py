@@ -56,8 +56,7 @@ async def poll_all_channel_watchers(
     with db.session() as s:
         enabled = list(s.scalars(select(ChannelWatcher).where(ChannelWatcher.enabled == True)))  # noqa: E712
         watcher_data = [
-            (w.id, w.channel_url, w.title_filter, w.quality_cap, w.last_live_id)
-            for w in enabled
+            (w.id, w.channel_url, w.title_filter, w.quality_cap, w.last_live_id) for w in enabled
         ]
 
     for w_id, channel_url, title_filter, quality_cap, last_live_id in watcher_data:
@@ -80,13 +79,17 @@ async def poll_all_channel_watchers(
                     stream_id=stream_id,
                     url=b.url,
                     quality_format=quality,
-                    db=db, pool=pool, buf=buf, bc=bc,
+                    db=db,
+                    pool=pool,
+                    buf=buf,
+                    bc=bc,
                 )
                 triggered_id = b.youtube_id
                 break
             except Exception as e:  # noqa: BLE001
-                logger.warning("watcher %s: failed to start recording for %s: %s",
-                               w_id, b.youtube_id, e)
+                logger.warning(
+                    "watcher %s: failed to start recording for %s: %s", w_id, b.youtube_id, e
+                )
 
         with db.session() as s:
             w = s.get(ChannelWatcher, w_id)

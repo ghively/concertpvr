@@ -21,8 +21,9 @@ def setup(tmp_path):
     return {"db": db, "pool": pool, "buf": buf, "bc": bc}
 
 
-def _seed_watcher(db: Database, *, title_filter: str | None = None,
-                  last_live_id: str | None = None) -> int:
+def _seed_watcher(
+    db: Database, *, title_filter: str | None = None, last_live_id: str | None = None
+) -> int:
     with db.session() as s:
         w = ChannelWatcher(
             channel_url="https://www.youtube.com/@nprmusic",
@@ -53,8 +54,11 @@ async def test_creates_stream_and_recording_when_new_live_found(setup):
         new=AsyncMock(return_value=[new_broadcast]),
     ):
         await poll_all_channel_watchers(
-            db=setup["db"], pool=setup["pool"], buf=setup["buf"],
-            bc=setup["bc"], default_quality="best",
+            db=setup["db"],
+            pool=setup["pool"],
+            buf=setup["buf"],
+            bc=setup["bc"],
+            default_quality="best",
         )
 
     with db.session() as s:
@@ -92,8 +96,11 @@ async def test_skips_when_no_change_since_last_poll(setup):
         new=AsyncMock(return_value=[same_broadcast]),
     ):
         await poll_all_channel_watchers(
-            db=setup["db"], pool=setup["pool"], buf=setup["buf"],
-            bc=setup["bc"], default_quality="best",
+            db=setup["db"],
+            pool=setup["pool"],
+            buf=setup["buf"],
+            bc=setup["bc"],
+            default_quality="best",
         )
 
     setup["pool"].start.assert_not_awaited()
@@ -119,8 +126,11 @@ async def test_title_filter_skips_non_matches(setup):
         new=AsyncMock(return_value=[other]),
     ):
         await poll_all_channel_watchers(
-            db=setup["db"], pool=setup["pool"], buf=setup["buf"],
-            bc=setup["bc"], default_quality="best",
+            db=setup["db"],
+            pool=setup["pool"],
+            buf=setup["buf"],
+            bc=setup["bc"],
+            default_quality="best",
         )
 
     setup["pool"].start.assert_not_awaited()
@@ -134,15 +144,19 @@ async def test_disabled_watcher_is_ignored(setup):
     with db.session() as s:
         w = ChannelWatcher(
             channel_url="https://www.youtube.com/@x",
-            channel_name="X", enabled=False,
+            channel_name="X",
+            enabled=False,
         )
         s.add(w)
 
     fetch_mock = AsyncMock(return_value=[])
     with patch("concertpvr.channel_poller.fetch_channel_live_broadcasts", new=fetch_mock):
         await poll_all_channel_watchers(
-            db=setup["db"], pool=setup["pool"], buf=setup["buf"],
-            bc=setup["bc"], default_quality="best",
+            db=setup["db"],
+            pool=setup["pool"],
+            buf=setup["buf"],
+            bc=setup["bc"],
+            default_quality="best",
         )
     fetch_mock.assert_not_awaited()
 
@@ -154,9 +168,11 @@ async def test_existing_stream_is_reused(setup):
 
     with db.session() as s:
         existing = Stream(
-            kind="live", youtube_id="live123",
+            kind="live",
+            youtube_id="live123",
             url="https://www.youtube.com/watch?v=live123",
-            title="Existing", channel_name="NPR Music",
+            title="Existing",
+            channel_name="NPR Music",
         )
         s.add(existing)
         s.flush()
@@ -165,7 +181,9 @@ async def test_existing_stream_is_reused(setup):
     new_broadcast = BroadcastInfo(
         youtube_id="live123",
         url="https://www.youtube.com/watch?v=live123",
-        title="Tiny Desk Live", channel_name="NPR Music", is_live=True,
+        title="Tiny Desk Live",
+        channel_name="NPR Music",
+        is_live=True,
     )
 
     with patch(
@@ -173,8 +191,11 @@ async def test_existing_stream_is_reused(setup):
         new=AsyncMock(return_value=[new_broadcast]),
     ):
         await poll_all_channel_watchers(
-            db=setup["db"], pool=setup["pool"], buf=setup["buf"],
-            bc=setup["bc"], default_quality="best",
+            db=setup["db"],
+            pool=setup["pool"],
+            buf=setup["buf"],
+            bc=setup["bc"],
+            default_quality="best",
         )
 
     with db.session() as s:

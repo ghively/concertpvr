@@ -16,8 +16,11 @@ async def test_creates_recording_row_and_calls_pool_start(tmp_path):
 
     with db.session() as s:
         stream = Stream(
-            kind="live", youtube_id="x", url="https://example.com",
-            title="t", channel_name="c",
+            kind="live",
+            youtube_id="x",
+            url="https://example.com",
+            title="t",
+            channel_name="c",
         )
         s.add(stream)
         s.flush()

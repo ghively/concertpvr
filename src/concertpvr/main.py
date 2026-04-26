@@ -170,6 +170,7 @@ def create_app() -> FastAPI:
     app.include_router(ws_router)  # no /api prefix — /ws/... is its own namespace
 
     from concertpvr.api.channel_watchers import router as channel_watchers_router
+
     app.include_router(channel_watchers_router, prefix="/api")
 
     cfg = Config()

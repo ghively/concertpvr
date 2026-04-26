@@ -27,6 +27,7 @@ def fake_extract(monkeypatch):
         pass
 
     import yt_dlp
+
     monkeypatch.setattr(yt_dlp.YoutubeDL, "__init__", _fake_init)
     monkeypatch.setattr(yt_dlp.YoutubeDL, "extract_info", _fake_extract)
     monkeypatch.setattr(yt_dlp.YoutubeDL, "close", _fake_close)
@@ -35,9 +36,7 @@ def fake_extract(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_fetch_returns_only_live_broadcasts(fake_extract):
-    broadcasts = await fetch_channel_live_broadcasts(
-        "https://www.youtube.com/@nprmusic"
-    )
+    broadcasts = await fetch_channel_live_broadcasts("https://www.youtube.com/@nprmusic")
     assert len(broadcasts) == 1
     assert isinstance(broadcasts[0], BroadcastInfo)
     assert broadcasts[0].youtube_id == "live123"
@@ -48,6 +47,7 @@ async def test_fetch_returns_only_live_broadcasts(fake_extract):
 @pytest.mark.asyncio
 async def test_fetch_returns_empty_on_extract_error(monkeypatch):
     import yt_dlp
+
     monkeypatch.setattr(yt_dlp.YoutubeDL, "__init__", lambda self, params=None: None)
 
     def _raise(self, url, download=False):  # noqa: ARG001
@@ -63,6 +63,7 @@ async def test_fetch_returns_empty_on_extract_error(monkeypatch):
 @pytest.mark.asyncio
 async def test_fetch_returns_empty_when_no_entries(monkeypatch):
     import yt_dlp
+
     monkeypatch.setattr(yt_dlp.YoutubeDL, "__init__", lambda self, params=None: None)
     monkeypatch.setattr(
         yt_dlp.YoutubeDL,
@@ -86,6 +87,7 @@ async def test_probe_channel_returns_metadata(fake_extract):
 @pytest.mark.asyncio
 async def test_probe_channel_raises_on_error(monkeypatch):
     import yt_dlp
+
     from concertpvr.ytdlp_channels import ChannelProbeError
 
     monkeypatch.setattr(yt_dlp.YoutubeDL, "__init__", lambda self, params=None: None)

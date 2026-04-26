@@ -219,6 +219,7 @@ class ChannelWatcherRead(BaseModel):
 
 class ChannelWatcherCreate(BaseModel):
     """Payload — server probes channel_url to populate channel_name + avatar."""
+
     model_config = ConfigDict(extra="forbid")
 
     channel_url: str
