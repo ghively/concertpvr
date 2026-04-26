@@ -5,6 +5,7 @@ const navItems = [
   { to: "/", label: "Dashboard", end: true },
   { to: "/streams", label: "Streams" },
   { to: "/schedule", label: "Schedule" },
+  { to: "/recordings", label: "Recordings" },
   { to: "/library", label: "Library" },
   { to: "/watchers", label: "Watchers" },
 ];
