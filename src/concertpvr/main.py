@@ -134,6 +134,10 @@ def create_app() -> FastAPI:
 
     app.include_router(segments_router, prefix="/api")
 
+    from concertpvr.api.setlists import router as setlists_router
+
+    app.include_router(setlists_router, prefix="/api")
+
     from concertpvr.api.ws_progress import router as ws_router
 
     app.include_router(ws_router)  # no /api prefix — /ws/... is its own namespace
