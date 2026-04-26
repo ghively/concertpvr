@@ -2,6 +2,8 @@
 
 YouTube concert & livestream PVR with Emby integration. Runs on Synology NAS via Docker.
 
+**Current version:** v0.1.0 — see [`CHANGELOG.md`](CHANGELOG.md).
+
 ## Features
 
 - **Buffer YouTube live streams** with configurable retention; scrub back through any captured fragment via the Timeline editor.
@@ -13,7 +15,7 @@ YouTube concert & livestream PVR with Emby integration. Runs on Synology NAS via
 
 ## Status
 
-All planned phases shipped. See `docs/superpowers/specs/2026-04-24-concertpvr-design.md` for the design spec and `docs/superpowers/plans/` for the per-phase implementation plans.
+All planned phases shipped. See [`docs/superpowers/specs/2026-04-24-concertpvr-design.md`](docs/superpowers/specs/2026-04-24-concertpvr-design.md) for the design spec and [`docs/superpowers/plans/`](docs/superpowers/plans/) for the per-phase implementation plans.
 
 ## Deployment (Synology, Docker)
 
@@ -31,6 +33,23 @@ After first start, browse to `http://<your-nas-ip>:8787` and:
 1. Open **Settings** → set a password (one-time; until you do, the app is open on your LAN).
 2. Configure Emby URL + API key in **Settings** if you want library refreshes.
 3. **Streams** → add a YouTube URL → start buffer; or **Schedule** → new schedule; or **Watchers** → add a channel.
+
+## Operations
+
+- [`docs/operations/environment.md`](docs/operations/environment.md) — full `CPVR_*` variable reference.
+- [`docs/operations/troubleshooting.md`](docs/operations/troubleshooting.md) — common failure modes and fixes.
+- [`docs/operations/cookies.md`](docs/operations/cookies.md) — exporting YouTube cookies for member-only / age-gated content.
+- [`docs/operations/backup-and-restore.md`](docs/operations/backup-and-restore.md) — what's stateful and how to back it up.
+- [`docs/release-checklist.md`](docs/release-checklist.md) — manual smoke-test checklist for new deployments.
+
+## API
+
+FastAPI auto-publishes the OpenAPI schema at:
+
+- Swagger UI: `http://<host>:8787/docs`
+- ReDoc: `http://<host>:8787/redoc`
+
+When auth is enabled these endpoints still require a session cookie (login at `/login`).
 
 ## Local development
 
@@ -61,14 +80,12 @@ Frontend at http://localhost:5173, proxying `/api/*` to the backend.
 ## Tests
 
 ```bash
-pytest                       # backend
-cd frontend && npm test      # frontend (vitest scaffolding)
+pytest                       # backend (177 tests as of v0.1.0)
+cd frontend && npm run typecheck && npm run build
 ```
 
-## Manual smoke test before release
-
-See `docs/release-checklist.md`.
+The frontend test runner (Vitest) is configured but no component tests have been authored yet — `npm test` runs cleanly with zero tests.
 
 ## License
 
-TBD.
+[MIT](LICENSE).
