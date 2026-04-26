@@ -68,6 +68,9 @@ def create_app() -> FastAPI:
     app.include_router(settings_router, prefix="/api")
     app.include_router(streams_router, prefix="/api")
 
+    from concertpvr.api.recordings import router as recordings_router
+    app.include_router(recordings_router, prefix="/api")
+
     from concertpvr.api.ws_progress import router as ws_router
     app.include_router(ws_router)  # no /api prefix — /ws/... is its own namespace
 
