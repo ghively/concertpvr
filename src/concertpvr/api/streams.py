@@ -147,7 +147,15 @@ async def patch_watch(
             quality = settings_row.default_quality if settings_row else "bestvideo*+bestaudio/best"
 
     if enabled and not pool.is_recording(stream_id):
-        await _start_recording(stream_id, url, quality, db, pool, buf, bc)
+        try:
+            await _start_recording(stream_id, url, quality, db, pool, buf, bc)
+        except RuntimeError as e:
+            if "capacity" in str(e).lower():
+                raise HTTPException(
+                    status_code=507,
+                    detail="Max concurrent recordings reached. Stop one before starting another.",
+                ) from e
+            raise
     elif not enabled and pool.is_recording(stream_id):
         await pool.stop(stream_id)
 

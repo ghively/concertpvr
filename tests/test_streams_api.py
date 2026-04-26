@@ -166,3 +166,22 @@ def test_disabling_watch_stops_recorder(client, fake_probe, monkeypatch):
     client.patch(f"/api/streams/{sid}/watch", json={"enabled": False})
 
     fake_pool.stop.assert_awaited_with(sid)
+
+
+def test_enabling_watch_returns_507_when_pool_at_capacity(client, fake_probe, monkeypatch):
+    """If pool.start raises capacity RuntimeError, surface as 507."""
+    from unittest.mock import AsyncMock, MagicMock
+
+    fake_pool = MagicMock()
+    fake_pool.is_recording = MagicMock(return_value=False)
+    fake_pool.start = AsyncMock(
+        side_effect=RuntimeError("recorder pool at capacity (4)")
+    )
+    fake_pool.stop = AsyncMock()
+    monkeypatch.setattr(client.app.state, "pool", fake_pool)
+
+    _, info = fake_probe
+    sid = client.post("/api/streams", json={"url": info.url}).json()["id"]
+    r = client.patch(f"/api/streams/{sid}/watch", json={"enabled": True})
+    assert r.status_code == 507
+    assert "max concurrent" in r.json()["detail"].lower()
