@@ -1,0 +1,82 @@
+import { Link } from "react-router-dom";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { useRecordings, useStreams } from "@/lib/query";
+import type { Recording, Stream } from "@/lib/api";
+
+const STATUS_COLOR = {
+  recording: "live",
+  complete: "done",
+  failed: "failed",
+  interrupted: "failed",
+} as const;
+
+function fmtDuration(s: number): string {
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return h > 0
+    ? `${h}h ${m}m`
+    : m > 0
+    ? `${m}m ${sec}s`
+    : `${sec}s`;
+}
+
+function fmtBytes(n: number): string {
+  if (n === 0) return "—";
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KiB`;
+  if (n < 1024 * 1024 * 1024) return `${(n / 1024 / 1024).toFixed(1)} MiB`;
+  return `${(n / 1024 / 1024 / 1024).toFixed(2)} GiB`;
+}
+
+export default function RecordingsPage() {
+  const { data: recordings, isLoading } = useRecordings();
+  const { data: streams } = useStreams();
+  const streamMap = new Map<number, Stream>((streams ?? []).map((s) => [s.id, s]));
+
+  return (
+    <div>
+      <h2 className="text-lg font-semibold mb-4">Recordings</h2>
+
+      {isLoading && <p className="text-ink-dim text-xs">Loading…</p>}
+      {recordings && recordings.length === 0 && (
+        <Card className="text-center py-8 text-ink-dim text-xs">
+          No recordings yet. Streams page → Add stream → Start buffer; or Schedule page → New schedule.
+        </Card>
+      )}
+      {recordings && recordings.length > 0 && (
+        <div className="space-y-2">
+          {recordings.map((r: Recording) => {
+            const stream = streamMap.get(r.stream_id);
+            return (
+              <Link key={r.id} to={`/timeline/${r.id}`}>
+                <Card className="flex items-center gap-4 hover:border-ink-faint cursor-pointer">
+                  <div className="w-32 flex-shrink-0">
+                    <div className="font-mono text-[11px] text-ink-faint">
+                      {new Date(r.started_at).toLocaleString(undefined, {
+                        month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+                      })}
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium truncate">
+                      {stream?.title ?? `Recording #${r.id}`}
+                    </div>
+                    <div className="text-xs text-ink-dim flex items-center gap-3 mt-0.5">
+                      <span>{stream?.channel_name ?? "—"}</span>
+                      <span>{fmtDuration(r.duration_s)}</span>
+                      <span>{fmtBytes(r.size_bytes)}</span>
+                      <Badge color={STATUS_COLOR[r.status] ?? "neutral"}>{r.status}</Badge>
+                      {r.is_buffer && <Badge color="buffering">buffer</Badge>}
+                    </div>
+                  </div>
+                  <div className="text-xs text-ink-dim">Open editor →</div>
+                </Card>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}

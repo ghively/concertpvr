@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 import datetime as _dt
+import mimetypes
+import re
+from collections.abc import Generator
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import Response, StreamingResponse
 from sqlalchemy import select
 
 from concertpvr.chapters import extract_chapters_json
@@ -67,3 +71,80 @@ def finalize_recording(
         s.refresh(rec)
         s.expunge(rec)
     return rec
+
+
+_RANGE_RE = re.compile(r"bytes=(\d+)-(\d*)")
+_CHUNK_SIZE = 1024 * 1024
+
+
+def _stream_file(path: Path, start: int, end: int) -> Generator[bytes, None, None]:
+    remaining = end - start + 1
+    with path.open("rb") as f:
+        f.seek(start)
+        while remaining > 0:
+            chunk = f.read(min(_CHUNK_SIZE, remaining))
+            if not chunk:
+                break
+            remaining -= len(chunk)
+            yield chunk
+
+
+@router.get("/recordings/{recording_id}/media")
+def get_recording_media(
+    recording_id: int,
+    request: Request,
+    db: Database = Depends(get_db),  # noqa: B008
+) -> Response:
+    with db.session() as s:
+        rec = s.get(Recording, recording_id)
+        if rec is None:
+            raise HTTPException(status_code=404, detail="recording not found")
+        path = Path(rec.path)
+
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="recording file missing")
+    if path.is_dir():
+        raise HTTPException(
+            status_code=415,
+            detail="recording is a directory of fragments; only single-file recordings can be served",
+        )
+
+    file_size = path.stat().st_size
+    media_type, _ = mimetypes.guess_type(str(path))
+    if media_type is None:
+        media_type = "application/octet-stream"
+
+    range_header = request.headers.get("range")
+    if range_header:
+        match = _RANGE_RE.match(range_header)
+        if match is None:
+            raise HTTPException(status_code=400, detail="invalid Range header")
+        start = int(match.group(1))
+        end_str = match.group(2)
+        end = int(end_str) if end_str else file_size - 1
+        if start >= file_size or end >= file_size:
+            return Response(
+                status_code=416,
+                headers={"content-range": f"bytes */{file_size}"},
+            )
+        content_length = end - start + 1
+        return StreamingResponse(
+            _stream_file(path, start, end),
+            status_code=206,
+            media_type=media_type,
+            headers={
+                "content-range": f"bytes {start}-{end}/{file_size}",
+                "content-length": str(content_length),
+                "accept-ranges": "bytes",
+            },
+        )
+
+    return StreamingResponse(
+        _stream_file(path, 0, file_size - 1),
+        status_code=200,
+        media_type=media_type,
+        headers={
+            "content-length": str(file_size),
+            "accept-ranges": "bytes",
+        },
+    )
