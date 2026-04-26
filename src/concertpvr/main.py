@@ -22,6 +22,12 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
 
     Base.metadata.create_all(app.state.db.engine)
 
+    # Orphan recovery: any recording stuck in 'recording' from a prior crash
+    # is real (the pool is empty at startup). Mark interrupted.
+    from concertpvr.orphan_recovery import mark_interrupted_on_startup
+
+    mark_interrupted_on_startup(app.state.db)
+
     from concertpvr.models import Settings as SettingsModel
 
     with app.state.db.session() as s:
