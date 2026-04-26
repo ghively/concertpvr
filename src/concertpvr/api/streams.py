@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
@@ -71,9 +71,18 @@ async def create_stream(
 
 
 @router.get("/streams", response_model=list[StreamRead])
-def list_streams(db: Database = Depends(get_db)) -> list[Stream]:  # noqa: B008
+def list_streams(
+    limit: int | None = Query(None, ge=1, le=10000),  # noqa: B008
+    offset: int = Query(0, ge=0),  # noqa: B008
+    db: Database = Depends(get_db),  # noqa: B008
+) -> list[Stream]:
     with db.session() as s:
-        rows = list(s.scalars(select(Stream).order_by(Stream.added_at.desc())))
+        stmt = select(Stream).order_by(Stream.added_at.desc())
+        if limit is not None:
+            stmt = stmt.limit(limit).offset(offset)
+        elif offset > 0:
+            stmt = stmt.offset(offset)
+        rows = list(s.scalars(stmt))
         for r in rows:
             s.expunge(r)
     return rows

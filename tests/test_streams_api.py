@@ -185,3 +185,29 @@ def test_enabling_watch_returns_507_when_pool_at_capacity(client, fake_probe, mo
     r = client.patch(f"/api/streams/{sid}/watch", json={"enabled": True})
     assert r.status_code == 507
     assert "max concurrent" in r.json()["detail"].lower()
+
+
+def test_list_streams_supports_limit_and_offset(client, fake_probe, monkeypatch):
+    """With multiple streams, limit + offset slice the result correctly."""
+    from concertpvr.ytdlp import StreamInfo
+
+    info_a = StreamInfo("yidA", "https://a", "A", "c", True, None)
+    info_b = StreamInfo("yidB", "https://b", "B", "c", True, None)
+    info_c = StreamInfo("yidC", "https://c", "C", "c", True, None)
+
+    from unittest.mock import patch
+
+    async def _seq_probe(url, **_kw):
+        return {"https://a": info_a, "https://b": info_b, "https://c": info_c}[url]
+
+    with patch("concertpvr.api.streams.probe", side_effect=_seq_probe):
+        client.post("/api/streams", json={"url": "https://a"})
+        client.post("/api/streams", json={"url": "https://b"})
+        client.post("/api/streams", json={"url": "https://c"})
+
+    r = client.get("/api/streams?limit=2&offset=0")
+    assert len(r.json()) == 2
+    r = client.get("/api/streams?limit=2&offset=2")
+    assert len(r.json()) == 1
+    r = client.get("/api/streams")  # default unlimited
+    assert len(r.json()) == 3
