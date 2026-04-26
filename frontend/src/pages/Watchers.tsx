@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useConfirm } from "@/components/ui/confirm";
 import {
   useChannelWatchers,
   useUpdateChannelWatcher,
@@ -25,6 +26,7 @@ export default function WatchersPage() {
   const { data, isLoading } = useChannelWatchers();
   const update = useUpdateChannelWatcher();
   const del = useDeleteChannelWatcher();
+  const confirm = useConfirm();
 
   const next_poll_in = (() => {
     const lp = (data ?? []).reduce<number | null>((acc, w) => {
@@ -67,8 +69,13 @@ export default function WatchersPage() {
             key={w.id}
             watcher={w}
             onToggle={(enabled) => update.mutate({ id: w.id, patch: { enabled } })}
-            onDelete={() => {
-              if (confirm(`Stop watching "${w.channel_name}"?`)) del.mutate(w.id);
+            onDelete={async () => {
+              const ok = await confirm({
+                message: `Stop watching "${w.channel_name}"?`,
+                confirmLabel: "Stop watching",
+                destructive: true,
+              });
+              if (ok) del.mutate(w.id);
             }}
           />
         ))}
