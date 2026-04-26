@@ -47,12 +47,15 @@ def create_segment(
 @router.get("/segments", response_model=list[SegmentRead])
 def list_segments(
     recording_id: int | None = Query(None),
+    status: str | None = Query(None),
     db: Database = Depends(get_db),  # noqa: B008
 ) -> list[Segment]:
     with db.session() as s:
         stmt = select(Segment).order_by(Segment.start_s.asc())
         if recording_id is not None:
             stmt = stmt.where(Segment.recording_id == recording_id)
+        if status is not None:
+            stmt = stmt.where(Segment.status == status)
         rows = list(s.scalars(stmt))
         for r in rows:
             s.expunge(r)

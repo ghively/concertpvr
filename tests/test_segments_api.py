@@ -163,3 +163,21 @@ def test_publish_segment(client, tmp_path):
     emby_path = Path(body["emby_path"])
     assert emby_path.is_dir()
     assert (emby_path / "movie.nfo").exists()
+
+
+def test_list_segments_filter_by_status(client):
+    rid = _seed_recording(client)
+    client.post(
+        "/api/segments",
+        json={
+            "recording_id": rid,
+            "artist": "A",
+            "start_s": 0,
+            "end_s": 1,
+            "source": "manual",
+        },
+    )
+    r = client.get("/api/segments?status=draft")
+    assert r.status_code == 200
+    body = r.json()
+    assert all(row["status"] == "draft" for row in body)

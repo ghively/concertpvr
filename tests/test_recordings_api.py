@@ -116,3 +116,16 @@ def test_finalize_recording_captures_chapters_and_creates_segments(client, tmp_p
     segs = client.get(f"/api/segments?recording_id={rid}").json()
     assert len(segs) == 2
     assert {seg["artist"] for seg in segs} == {"Phoebe", "Goose"}
+
+
+def test_list_recordings_filter_by_status(client):
+    from sqlalchemy import select
+
+    sid = _seed(client, 2)
+    db = client.app.state.db
+    with db.session() as s:
+        recs = list(s.scalars(select(Recording).where(Recording.stream_id == sid)))
+        recs[0].status = "complete"
+    r = client.get("/api/recordings?status=complete")
+    assert r.status_code == 200
+    assert all(row["status"] == "complete" for row in r.json())
