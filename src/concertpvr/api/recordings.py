@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import datetime as _dt
-from pathlib import Path
-
 import mimetypes
 import re
+from collections.abc import Generator
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response, StreamingResponse
@@ -77,7 +77,7 @@ _RANGE_RE = re.compile(r"bytes=(\d+)-(\d*)")
 _CHUNK_SIZE = 1024 * 1024
 
 
-def _stream_file(path: Path, start: int, end: int):
+def _stream_file(path: Path, start: int, end: int) -> Generator[bytes, None, None]:
     remaining = end - start + 1
     with path.open("rb") as f:
         f.seek(start)

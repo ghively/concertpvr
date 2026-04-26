@@ -27,7 +27,8 @@ def _seed(client) -> int:
             stream_id=stream.id,
             started_at=dt.datetime(2026, 4, 25, 12, 0, tzinfo=dt.UTC),
             path=str(FIXTURE),
-            is_buffer=False, status="complete",
+            is_buffer=False,
+            status="complete",
         )
         s.add(rec)
         s.flush()
@@ -68,7 +69,8 @@ def test_get_media_404_when_file_missing(client, tmp_path):
             stream_id=stream.id,
             started_at=dt.datetime(2026, 4, 25, 12, 0, tzinfo=dt.UTC),
             path=str(tmp_path / "nonexistent.mp4"),
-            is_buffer=False, status="complete",
+            is_buffer=False,
+            status="complete",
         )
         s.add(rec)
         s.flush()
@@ -90,7 +92,8 @@ def test_get_media_refuses_to_serve_directory(client, tmp_path):
             stream_id=stream.id,
             started_at=dt.datetime(2026, 4, 25, 12, 0, tzinfo=dt.UTC),
             path=str(rec_dir),
-            is_buffer=True, status="complete",
+            is_buffer=True,
+            status="complete",
         )
         s.add(rec)
         s.flush()
