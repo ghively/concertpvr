@@ -24,7 +24,8 @@ def _seed_recording(client) -> int:
         rec = Recording(
             stream_id=stream.id,
             started_at=dt.datetime(2026, 4, 12, 14, 0, tzinfo=dt.UTC),
-            path="/buf/1", is_buffer=True,
+            path="/buf/1",
+            is_buffer=True,
         )
         s.add(rec)
         s.flush()
@@ -33,19 +34,25 @@ def _seed_recording(client) -> int:
 
 def test_post_setlist_replaces_all(client):
     rid = _seed_recording(client)
-    r = client.post(f"/api/recordings/{rid}/setlist", json={
-        "entries": [
-            {"artist": "Phoebe Bridgers", "start_s": 21, "end_s": 94},
-            {"artist": "Goose", "start_s": 100, "end_s": 200},
-        ],
-    })
+    r = client.post(
+        f"/api/recordings/{rid}/setlist",
+        json={
+            "entries": [
+                {"artist": "Phoebe Bridgers", "start_s": 21, "end_s": 94},
+                {"artist": "Goose", "start_s": 100, "end_s": 200},
+            ],
+        },
+    )
     assert r.status_code == 200
     body = r.json()
     assert len(body) == 2
 
-    r2 = client.post(f"/api/recordings/{rid}/setlist", json={
-        "entries": [{"artist": "Tame Impala", "start_s": 5, "end_s": 10}],
-    })
+    r2 = client.post(
+        f"/api/recordings/{rid}/setlist",
+        json={
+            "entries": [{"artist": "Tame Impala", "start_s": 5, "end_s": 10}],
+        },
+    )
     assert r2.status_code == 200
     assert len(r2.json()) == 1
 
@@ -65,9 +72,12 @@ def test_post_setlist_paste_parses_text(client):
 
 def test_get_setlist(client):
     rid = _seed_recording(client)
-    client.post(f"/api/recordings/{rid}/setlist", json={
-        "entries": [{"artist": "Goose", "start_s": 1, "end_s": 2}],
-    })
+    client.post(
+        f"/api/recordings/{rid}/setlist",
+        json={
+            "entries": [{"artist": "Goose", "start_s": 1, "end_s": 2}],
+        },
+    )
     r = client.get(f"/api/recordings/{rid}/setlist")
     assert r.status_code == 200
     assert r.json()[0]["artist"] == "Goose"

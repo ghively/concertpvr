@@ -39,8 +39,15 @@ def test_build_nfo_writes_emby_movie_xml(tmp_path: Path):
 def test_build_nfo_when_no_optional_metadata(tmp_path: Path):
     mb = MetadataBuilder()
     minimal = SegmentMeta(
-        artist="Test", title=None, festival=None, venue=None,
-        year=2026, date=None, duration_s=600, width=None, height=None,
+        artist="Test",
+        title=None,
+        festival=None,
+        venue=None,
+        year=2026,
+        date=None,
+        duration_s=600,
+        width=None,
+        height=None,
     )
     nfo = mb.build_nfo(minimal, tmp_path)
     text = nfo.read_text(encoding="utf-8")

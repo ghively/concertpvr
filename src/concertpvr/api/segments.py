@@ -9,7 +9,10 @@ from concertpvr.db import Database
 from concertpvr.deps import get_db
 from concertpvr.models import Recording, Segment
 from concertpvr.schemas import (
-    PublishOptions, SegmentCreate, SegmentPatch, SegmentRead,
+    PublishOptions,
+    SegmentCreate,
+    SegmentPatch,
+    SegmentRead,
 )
 
 router = APIRouter()

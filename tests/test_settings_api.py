@@ -50,9 +50,12 @@ def test_patch_settings_validates_types(client):
 def test_patching_emby_config_rebuilds_client(client):
     assert client.app.state.emby_client.configured is False
 
-    client.patch("/api/settings", json={
-        "emby_url": "http://emby:8096",
-        "emby_api_key": "secret123",
-    })
+    client.patch(
+        "/api/settings",
+        json={
+            "emby_url": "http://emby:8096",
+            "emby_api_key": "secret123",
+        },
+    )
 
     assert client.app.state.emby_client.configured is True

@@ -34,9 +34,7 @@ class MetadataBuilder:
         output_dir.mkdir(parents=True, exist_ok=True)
         out = output_dir / "movie.nfo"
 
-        title = (
-            f"{meta.artist} — {meta.title}" if meta.title else meta.artist
-        )
+        title = f"{meta.artist} — {meta.title}" if meta.title else meta.artist
         runtime = max(0, meta.duration_s // 60)
 
         lines = [
@@ -73,7 +71,7 @@ class MetadataBuilder:
                 src = Image.open(source_thumbnail).convert("RGB")
                 scale = max(POSTER_W / src.width, POSTER_H / src.height)
                 new_size = (int(src.width * scale), int(src.height * scale))
-                src = src.resize(new_size, Image.LANCZOS)
+                src = src.resize(new_size, Image.Resampling.LANCZOS)
                 left = (src.width - POSTER_W) // 2
                 top = (src.height - POSTER_H) // 2
                 src = src.crop((left, top, left + POSTER_W, top + POSTER_H))
@@ -102,9 +100,7 @@ class MetadataBuilder:
         canvas.save(out, "JPEG", quality=88)
         return out
 
-    def build_fanart(
-        self, source_thumbnail: Path | None, output_dir: Path
-    ) -> Path:
+    def build_fanart(self, source_thumbnail: Path | None, output_dir: Path) -> Path:
         output_dir.mkdir(parents=True, exist_ok=True)
         out = output_dir / "fanart.jpg"
 
@@ -113,7 +109,7 @@ class MetadataBuilder:
                 src = Image.open(source_thumbnail).convert("RGB")
                 scale = max(FANART_W / src.width, FANART_H / src.height)
                 new_size = (int(src.width * scale), int(src.height * scale))
-                src = src.resize(new_size, Image.LANCZOS)
+                src = src.resize(new_size, Image.Resampling.LANCZOS)
                 left = (src.width - FANART_W) // 2
                 top = (src.height - FANART_H) // 2
                 src = src.crop((left, top, left + FANART_W, top + FANART_H))
@@ -122,9 +118,7 @@ class MetadataBuilder:
             except Exception:
                 pass
 
-        Image.new("RGB", (FANART_W, FANART_H), color=(12, 14, 18)).save(
-            out, "JPEG", quality=88
-        )
+        Image.new("RGB", (FANART_W, FANART_H), color=(12, 14, 18)).save(out, "JPEG", quality=88)
         return out
 
     def _load_fonts(
@@ -141,6 +135,6 @@ class MetadataBuilder:
                     ImageFont.truetype(candidate, 72),
                     ImageFont.truetype(candidate, 56),
                     ImageFont.truetype(candidate, 36),
-                )
+                )  # type: ignore[return-value]
         d = ImageFont.load_default()
-        return d, d, d
+        return (d, d, d)  # type: ignore[return-value]

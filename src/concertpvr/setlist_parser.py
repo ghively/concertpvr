@@ -48,9 +48,11 @@ def parse_setlist_paste(text: str) -> list[ParsedEntry]:
         m = _LINE_RE.match(line)
         if m is None:
             raise ParseError(f"unparseable line: {line!r}")
-        entries.append(ParsedEntry(
-            artist=m.group("artist").strip(),
-            start_s=_to_seconds(m.group("start")),
-            end_s=_to_seconds(m.group("end")),
-        ))
+        entries.append(
+            ParsedEntry(
+                artist=m.group("artist").strip(),
+                start_s=_to_seconds(m.group("start")),
+                end_s=_to_seconds(m.group("end")),
+            )
+        )
     return entries

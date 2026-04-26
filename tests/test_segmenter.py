@@ -22,10 +22,12 @@ def _seed_recording(db: Database, *, with_chapters: bool = False) -> int:
         s.flush()
         chapters = None
         if with_chapters:
-            chapters = json.dumps([
-                {"title": "Phoebe Bridgers", "start_time": 21, "end_time": 1900},
-                {"title": "Goose", "start_time": 1900, "end_time": 4000},
-            ])
+            chapters = json.dumps(
+                [
+                    {"title": "Phoebe Bridgers", "start_time": 21, "end_time": 1900},
+                    {"title": "Goose", "start_time": 1900, "end_time": 4000},
+                ]
+            )
         rec = Recording(
             stream_id=stream.id,
             started_at=dt.datetime(2026, 4, 25, 12, 0, tzinfo=dt.UTC),

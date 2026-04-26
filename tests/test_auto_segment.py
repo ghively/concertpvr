@@ -17,10 +17,12 @@ def client(tmp_path, monkeypatch):
 
 def test_setting_recording_complete_with_chapters_creates_segments(client):
     db = client.app.state.db
-    chapters = json.dumps([
-        {"title": "A", "start_time": 0, "end_time": 60},
-        {"title": "B", "start_time": 60, "end_time": 120},
-    ])
+    chapters = json.dumps(
+        [
+            {"title": "A", "start_time": 0, "end_time": 60},
+            {"title": "B", "start_time": 60, "end_time": 120},
+        ]
+    )
     with db.session() as s:
         stream = Stream(kind="live", youtube_id="x", url="u", title="t", channel_name="c")
         s.add(stream)

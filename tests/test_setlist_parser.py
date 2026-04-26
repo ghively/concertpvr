@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from concertpvr.setlist_parser import parse_setlist_paste, ParseError
+from concertpvr.setlist_parser import ParseError, parse_setlist_paste
 
 
 def test_parses_unicode_em_dash():
@@ -28,9 +28,7 @@ def test_parses_multiline():
     fixture = Path(__file__).parent / "fixtures" / "setlist_paste.txt"
     result = parse_setlist_paste(fixture.read_text(encoding="utf-8"))
     assert len(result) == 4
-    assert {e.artist for e in result} == {
-        "Phoebe Bridgers", "Goose", "Rüfüs Du Sol", "Tame Impala"
-    }
+    assert {e.artist for e in result} == {"Phoebe Bridgers", "Goose", "Rüfüs Du Sol", "Tame Impala"}
 
 
 def test_skips_empty_lines_and_comments():

@@ -62,6 +62,7 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
     app.state.schedule_manager.rehydrate_from_db(app.state.db)
 
     from concertpvr.auto_segment import register as _register_auto_segment
+
     _register_auto_segment()
 
     from concertpvr.emby import EmbyClient
@@ -73,8 +74,7 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
         emby_url = settings_row.emby_url if settings_row else None
         emby_key = settings_row.emby_api_key if settings_row else None
         folder_pattern = (
-            settings_row.folder_pattern if settings_row
-            else "{artist} - {festival} ({year})"
+            settings_row.folder_pattern if settings_row else "{artist} - {festival} ({year})"
         )
 
     app.state.emby_client = EmbyClient(emby_url, emby_key)

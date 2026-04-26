@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from typing import Protocol, cast, runtime_checkable
+
 from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy import delete, select
 
@@ -14,7 +17,14 @@ from concertpvr.setlist_parser import ParseError, parse_setlist_paste
 router = APIRouter()
 
 
-def _replace_entries(db: Database, recording_id: int, entries: list) -> list[Setlist]:
+@runtime_checkable
+class _Entry(Protocol):
+    artist: str
+    start_s: int
+    end_s: int
+
+
+def _replace_entries(db: Database, recording_id: int, entries: Sequence[_Entry]) -> list[Setlist]:
     with db.session() as s:
         if s.get(Recording, recording_id) is None:
             raise HTTPException(status_code=404, detail="recording not found")
@@ -44,9 +54,13 @@ def get_setlist(
     with db.session() as s:
         if s.get(Recording, recording_id) is None:
             raise HTTPException(status_code=404, detail="recording not found")
-        rows = list(s.scalars(
-            select(Setlist).where(Setlist.recording_id == recording_id).order_by(Setlist.start_s)
-        ))
+        rows = list(
+            s.scalars(
+                select(Setlist)
+                .where(Setlist.recording_id == recording_id)
+                .order_by(Setlist.start_s)
+            )
+        )
         for r in rows:
             s.expunge(r)
     return rows
@@ -72,4 +86,4 @@ def post_setlist_paste(
         parsed = parse_setlist_paste(text)
     except ParseError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
-    return _replace_entries(db, recording_id, parsed)
+    return _replace_entries(db, recording_id, cast(Sequence[_Entry], parsed))

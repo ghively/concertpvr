@@ -3,11 +3,20 @@
 from __future__ import annotations
 
 import json
+from typing import TypedDict
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from concertpvr.models import Recording, Segment, Setlist
+
+
+class Chapter(TypedDict, total=False):
+    """Chapter from raw_chapters_json."""
+
+    title: str
+    start_time: int
+    end_time: int
 
 
 def derive_draft_segments_no_flush(recording: Recording, session: Session) -> list[Segment]:
@@ -23,9 +32,11 @@ def derive_draft_segments_no_flush(recording: Recording, session: Session) -> li
         if chapters:
             return _from_chapters_no_flush(recording, chapters, session)
 
-    setlist_rows = list(session.scalars(
-        select(Setlist).where(Setlist.recording_id == recording.id).order_by(Setlist.start_s)
-    ))
+    setlist_rows = list(
+        session.scalars(
+            select(Setlist).where(Setlist.recording_id == recording.id).order_by(Setlist.start_s)
+        )
+    )
     if setlist_rows:
         return _from_setlist_no_flush(recording, setlist_rows, session)
 
@@ -45,16 +56,20 @@ def derive_draft_segments(recording: Recording, session: Session) -> list[Segmen
         if chapters:
             return _from_chapters(recording, chapters, session)
 
-    setlist_rows = list(session.scalars(
-        select(Setlist).where(Setlist.recording_id == recording.id).order_by(Setlist.start_s)
-    ))
+    setlist_rows = list(
+        session.scalars(
+            select(Setlist).where(Setlist.recording_id == recording.id).order_by(Setlist.start_s)
+        )
+    )
     if setlist_rows:
         return _from_setlist(recording, setlist_rows, session)
 
     return []
 
 
-def _from_chapters(recording: Recording, chapters: list[dict], session: Session) -> list[Segment]:
+def _from_chapters(
+    recording: Recording, chapters: list[Chapter], session: Session
+) -> list[Segment]:
     segs: list[Segment] = []
     for ch in chapters:
         title = (ch.get("title") or "").strip()
@@ -100,7 +115,7 @@ def _from_setlist(
 
 
 def _from_chapters_no_flush(
-    recording: Recording, chapters: list[dict], session: Session
+    recording: Recording, chapters: list[Chapter], session: Session
 ) -> list[Segment]:
     segs: list[Segment] = []
     for ch in chapters:

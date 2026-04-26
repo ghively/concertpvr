@@ -11,7 +11,7 @@ from concertpvr.segmenter import derive_draft_segments_no_flush
 _registered = False
 
 
-def _before_flush(session: Session, flush_context, instances) -> None:  # noqa: ANN001, ARG001
+def _before_flush(session: Session, flush_context: object, instances: object) -> None:  # noqa: ARG001
     for obj in session.dirty:
         if not isinstance(obj, Recording):
             continue
@@ -21,9 +21,7 @@ def _before_flush(session: Session, flush_context, instances) -> None:  # noqa: 
             continue
         if obj.status != "complete":
             continue
-        existing = session.scalar(
-            select(Segment.id).where(Segment.recording_id == obj.id).limit(1)
-        )
+        existing = session.scalar(select(Segment.id).where(Segment.recording_id == obj.id).limit(1))
         if existing is None:
             derive_draft_segments_no_flush(obj, session)
 

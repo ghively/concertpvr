@@ -27,9 +27,13 @@ class Splitter:
 
     async def probe(self, input_path: Path) -> ProbeInfo:
         argv = [
-            "ffprobe", "-v", "error",
-            "-print_format", "json",
-            "-show_format", "-show_streams",
+            "ffprobe",
+            "-v",
+            "error",
+            "-print_format",
+            "json",
+            "-show_format",
+            "-show_streams",
             str(input_path),
         ]
         proc = await self._runner.spawn(argv)
@@ -54,17 +58,21 @@ class Splitter:
 
         return ProbeInfo(duration_s=duration_s, width=width, height=height, fps=fps)
 
-    async def cut(
-        self, input_path: Path, output_path: Path, start_s: float, end_s: float
-    ) -> None:
+    async def cut(self, input_path: Path, output_path: Path, start_s: float, end_s: float) -> None:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         argv = [
-            "ffmpeg", "-y",
-            "-ss", f"{start_s:.3f}",
-            "-to", f"{end_s:.3f}",
-            "-i", str(input_path),
-            "-c", "copy",
-            "-avoid_negative_ts", "make_zero",
+            "ffmpeg",
+            "-y",
+            "-ss",
+            f"{start_s:.3f}",
+            "-to",
+            f"{end_s:.3f}",
+            "-i",
+            str(input_path),
+            "-c",
+            "copy",
+            "-avoid_negative_ts",
+            "make_zero",
             str(output_path),
         ]
         proc = await self._runner.spawn(argv)
@@ -76,16 +84,19 @@ class Splitter:
         if rc != 0:
             raise FFmpegError(f"ffmpeg exited {rc}")
 
-    async def thumbnail(
-        self, input_path: Path, output_path: Path, at_s: float
-    ) -> None:
+    async def thumbnail(self, input_path: Path, output_path: Path, at_s: float) -> None:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         argv = [
-            "ffmpeg", "-y",
-            "-ss", f"{at_s:.3f}",
-            "-i", str(input_path),
-            "-frames:v", "1",
-            "-q:v", "2",
+            "ffmpeg",
+            "-y",
+            "-ss",
+            f"{at_s:.3f}",
+            "-i",
+            str(input_path),
+            "-frames:v",
+            "1",
+            "-q:v",
+            "2",
             str(output_path),
         ]
         proc = await self._runner.spawn(argv)

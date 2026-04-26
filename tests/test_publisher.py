@@ -20,8 +20,11 @@ def db(tmp_path):
 def _seed(db: Database, source_path: Path) -> int:
     with db.session() as s:
         stream = Stream(
-            kind="live", youtube_id="x", url="u",
-            title="Coachella W1 — Mojave Stage", channel_name="Coachella",
+            kind="live",
+            youtube_id="x",
+            url="u",
+            title="Coachella W1 — Mojave Stage",
+            channel_name="Coachella",
         )
         s.add(stream)
         s.flush()
@@ -38,8 +41,10 @@ def _seed(db: Database, source_path: Path) -> int:
             recording_id=rec.id,
             artist="Phoebe Bridgers",
             title="Mojave Set",
-            start_s=0, end_s=2,
-            source="manual", status="draft",
+            start_s=0,
+            end_s=2,
+            source="manual",
+            status="draft",
         )
         s.add(seg)
         s.flush()
@@ -100,7 +105,7 @@ async def test_publish_marks_failed_on_ffmpeg_error(db, tmp_path):
         emby_client=MagicMock(trigger_path_scan=AsyncMock()),
     )
 
-    with pytest.raises(Exception):
+    with pytest.raises(RuntimeError):
         await worker.publish(seg_id, year=2026)
 
     with db.session() as s:
@@ -112,8 +117,10 @@ async def test_publish_marks_failed_on_ffmpeg_error(db, tmp_path):
 @pytest.mark.asyncio
 async def test_publish_404s_when_segment_missing(db, tmp_path):
     worker = PublishWorker(
-        db=db, runner=AsyncSubprocessRunner(),
-        publish_root=tmp_path, folder_pattern="{artist} ({year})",
+        db=db,
+        runner=AsyncSubprocessRunner(),
+        publish_root=tmp_path,
+        folder_pattern="{artist} ({year})",
         emby_client=MagicMock(trigger_path_scan=AsyncMock()),
     )
     with pytest.raises(LookupError):

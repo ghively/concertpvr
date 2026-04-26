@@ -3,7 +3,16 @@ import datetime as dt
 from sqlalchemy import text
 
 from concertpvr.db import Database
-from concertpvr.models import Base, Recording, Schedule, Segment, Setlist, Settings, Stream, WatchSubscription
+from concertpvr.models import (
+    Base,
+    Recording,
+    Schedule,
+    Segment,
+    Setlist,
+    Settings,
+    Stream,
+    WatchSubscription,
+)
 
 
 def test_database_connects_and_pings(tmp_path):
