@@ -3,7 +3,7 @@
 import datetime as _dt
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 class SettingsRead(BaseModel):
@@ -34,6 +34,27 @@ class SettingsPatch(BaseModel):
     max_concurrent_recordings: int | None = None
     auto_prune_when_full: bool | None = None
     yt_dlp_cookies_path: str | None = None
+
+    @field_validator("folder_pattern")
+    @classmethod
+    def _validate_folder_pattern(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        try:
+            v.format(
+                artist="Test",
+                festival="Festival",
+                venue="Venue",
+                year=2026,
+                date="2026-01-01",
+                title="Title",
+            )
+        except (KeyError, IndexError, ValueError) as e:
+            raise ValueError(
+                f"folder_pattern uses invalid token: {e}. Allowed tokens: "
+                "{artist} {festival} {venue} {year} {date} {title}"
+            ) from e
+        return v
 
 
 class StreamRead(BaseModel):
