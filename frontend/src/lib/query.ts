@@ -140,3 +140,54 @@ export function useDeleteSchedule() {
     onSuccess: () => qc.invalidateQueries({ queryKey: schedulesKeys.all }),
   });
 }
+
+import {
+  type Segment,
+  type SegmentCreate,
+  type SegmentPatch,
+  type PublishOptions,
+  segmentsApi,
+} from "./api";
+
+export const segmentsKeys = {
+  forRecording: (rid: number) => ["segments", rid] as const,
+};
+
+export function useSegments(recordingId: number) {
+  return useQuery<Segment[]>({
+    queryKey: segmentsKeys.forRecording(recordingId),
+    queryFn: () => segmentsApi.list(recordingId),
+  });
+}
+
+export function useCreateSegment(recordingId: number) {
+  const qc = useQueryClient();
+  return useMutation<Segment, Error, SegmentCreate>({
+    mutationFn: (p) => segmentsApi.create(p),
+    onSuccess: () => qc.invalidateQueries({ queryKey: segmentsKeys.forRecording(recordingId) }),
+  });
+}
+
+export function useUpdateSegment(recordingId: number) {
+  const qc = useQueryClient();
+  return useMutation<Segment, Error, { id: number; patch: SegmentPatch }>({
+    mutationFn: ({ id, patch }) => segmentsApi.patch(id, patch),
+    onSuccess: () => qc.invalidateQueries({ queryKey: segmentsKeys.forRecording(recordingId) }),
+  });
+}
+
+export function useDeleteSegment(recordingId: number) {
+  const qc = useQueryClient();
+  return useMutation<void, Error, number>({
+    mutationFn: (id) => segmentsApi.delete(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: segmentsKeys.forRecording(recordingId) }),
+  });
+}
+
+export function usePublishSegment(recordingId: number) {
+  const qc = useQueryClient();
+  return useMutation<Segment, Error, { id: number; options: PublishOptions }>({
+    mutationFn: ({ id, options }) => segmentsApi.publish(id, options),
+    onSuccess: () => qc.invalidateQueries({ queryKey: segmentsKeys.forRecording(recordingId) }),
+  });
+}

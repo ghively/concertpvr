@@ -113,6 +113,86 @@ export const recordingsApi = {
   get: (id: number) => api.get<Recording>(`/api/recordings/${id}`),
 };
 
+// ── Segments ────────────────────────────────────────────────────────────────
+
+export type SegmentSource = "chapter" | "setlist" | "manual";
+export type SegmentStatus = "draft" | "publishing" | "published" | "publish_failed";
+
+export type Segment = {
+  id: number;
+  recording_id: number;
+  artist: string;
+  title: string | null;
+  start_s: number;
+  end_s: number;
+  source: SegmentSource;
+  status: SegmentStatus;
+  error: string | null;
+  emby_path: string | null;
+  poster_path: string | null;
+  nfo_path: string | null;
+};
+
+export type SegmentCreate = {
+  recording_id: number;
+  artist: string;
+  title?: string | null;
+  start_s: number;
+  end_s: number;
+  source?: SegmentSource;
+};
+
+export type SegmentPatch = {
+  artist?: string;
+  title?: string | null;
+  start_s?: number;
+  end_s?: number;
+};
+
+export type PublishOptions = {
+  festival?: string | null;
+  venue?: string | null;
+  year?: number | null;
+};
+
+export const segmentsApi = {
+  list: (recordingId: number) =>
+    api.get<Segment[]>(`/api/segments?recording_id=${recordingId}`),
+  create: (p: SegmentCreate) => api.post<Segment>("/api/segments", p),
+  patch: (id: number, p: SegmentPatch) => api.patch<Segment>(`/api/segments/${id}`, p),
+  delete: (id: number) => api.delete<void>(`/api/segments/${id}`),
+  publish: (id: number, opts: PublishOptions) =>
+    api.post<Segment>(`/api/segments/${id}/publish`, opts),
+};
+
+// ── Setlists ────────────────────────────────────────────────────────────────
+
+export type SetlistEntry = { artist: string; start_s: number; end_s: number };
+
+export const setlistsApi = {
+  get: (recordingId: number) =>
+    api.get<(SetlistEntry & { id: number; recording_id: number })[]>(
+      `/api/recordings/${recordingId}/setlist`,
+    ),
+  replace: (recordingId: number, entries: SetlistEntry[]) =>
+    api.post<unknown>(`/api/recordings/${recordingId}/setlist`, { entries }),
+  paste: async (recordingId: number, text: string) => {
+    const res = await fetch(`/api/recordings/${recordingId}/setlist/paste`, {
+      method: "POST",
+      headers: { "content-type": "text/plain" },
+      body: text,
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      throw new ApiError(res.status, body);
+    }
+    return res.json();
+  },
+};
+
+export const recordingMediaUrl = (id: number) => `/api/recordings/${id}/media`;
+
 // ── Schedules ───────────────────────────────────────────────────────────────
 
 export type ScheduleStatus = "pending" | "running" | "complete" | "failed" | "cancelled";
