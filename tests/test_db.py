@@ -193,6 +193,17 @@ def test_setlist_round_trip(tmp_path):
         assert loaded.artist == "Goose"
 
 
+def test_settings_auth_columns_default_to_null(tmp_db):
+    Base.metadata.create_all(tmp_db.engine)
+    with tmp_db.session() as s:
+        s.add(Settings(id=1))
+    with tmp_db.session() as s:
+        row = s.get(Settings, 1)
+        assert row is not None
+        assert row.password_hash is None
+        assert row.session_secret is None
+
+
 def test_channel_watcher_round_trip(tmp_db):
     Base.metadata.create_all(tmp_db.engine)
 
