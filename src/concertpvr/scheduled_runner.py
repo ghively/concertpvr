@@ -124,6 +124,17 @@ async def run_scheduled_recording(schedule_id: int) -> None:
             },
         )
 
+    # Read cookies path from settings — used for member-only / age-gated streams.
+    from concertpvr.models import Settings as _Settings
+
+    with db.session() as s:
+        _row = s.get(_Settings, 1)
+        cookies_path = (
+            Path(_row.yt_dlp_cookies_path)
+            if _row is not None and _row.yt_dlp_cookies_path
+            else None
+        )
+
     worker = RecorderWorker(
         stream_id=stream_id,
         url=url,
@@ -131,6 +142,7 @@ async def run_scheduled_recording(schedule_id: int) -> None:
         quality_format="bestvideo*+bestaudio/best",
         runner=runner_factory(),
         on_progress=on_progress,
+        cookies_path=cookies_path,
     )
 
     await pool.start(worker)

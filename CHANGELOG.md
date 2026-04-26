@@ -30,10 +30,12 @@ First release. Built across 6 implementation phases, all merged to main.
 
 ### Known limitations
 
-- The Timeline editor only plays single-file recordings (scheduled outputs work; buffered fragment directories don't yet).
+- The Timeline editor only plays single-file recordings (scheduled outputs work; buffered fragment directories don't yet — concatenate manually per the troubleshooting guide).
+- **YouTube DVR-window scraping is not implemented.** The spec called for "best-effort YouTube DVR-window seek" alongside the local rolling buffer. Only the local buffer is shipped — you can scrub through fragments concertpvr captured itself, but you can't reach into YouTube's own DVR window for content concertpvr didn't buffer.
 - Emby path translation between concertpvr's publish path and Emby's library path is not yet automatic — set both correctly in Settings.
 - WebSocket auth: the `/ws/streams/{id}/progress` endpoint is open even after a password is set.
 - Wavesurfer waveform: not yet integrated; the timeline strip is solid-color regions over a time axis.
+- Recording → Schedule reverse lookup: `Recording` rows don't carry a `schedule_id` field. To find "which schedule created this recording?", query `/api/schedules` and match by `recording_id`.
 - Frontend test suite: scaffolded but not authored. `npm test` runs Vitest with no test files.
 
 See `docs/operations/troubleshooting.md` for runtime issue handling and `docs/release-checklist.md` for the manual smoke-test checklist.

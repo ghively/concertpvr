@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
+from pathlib import Path
 
 import yt_dlp  # type: ignore[import-untyped]
 
@@ -26,13 +27,15 @@ class StreamInfo:
     thumbnail_url: str | None
 
 
-def _extract_sync(url: str) -> dict[str, object]:
-    opts = {
+def _extract_sync(url: str, cookies_path: str | None) -> dict[str, object]:
+    opts: dict[str, object] = {
         "quiet": True,
         "no_warnings": True,
         "skip_download": True,
         "noplaylist": True,
     }
+    if cookies_path:
+        opts["cookiefile"] = cookies_path
     with yt_dlp.YoutubeDL(opts) as ydl:
         result = ydl.extract_info(url, download=False)
         if result is None:
@@ -40,13 +43,15 @@ def _extract_sync(url: str) -> dict[str, object]:
         return result  # type: ignore[no-any-return]
 
 
-async def probe(url: str) -> StreamInfo:
+async def probe(url: str, *, cookies_path: Path | None = None) -> StreamInfo:
     """Fetch metadata for a YouTube URL. Runs yt-dlp in a thread to avoid blocking.
 
-    Raises ProbeError on extraction failure.
+    `cookies_path` is the optional Netscape-format cookies file for member-only
+    or age-gated content. Raises ProbeError on extraction failure.
     """
+    cookies_str = str(cookies_path) if cookies_path and Path(cookies_path).exists() else None
     try:
-        info = await asyncio.to_thread(_extract_sync, url)
+        info = await asyncio.to_thread(_extract_sync, url, cookies_str)
     except yt_dlp.utils.DownloadError as e:
         raise ProbeError(str(e)) from e
     except Exception as e:

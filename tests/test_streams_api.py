@@ -25,7 +25,7 @@ def fake_probe():
         thumbnail_url="https://example.com/t.jpg",
     )
 
-    async def _async_probe(_url):
+    async def _async_probe(_url, **_kwargs):
         return info
 
     with patch("concertpvr.api.streams.probe", side_effect=_async_probe) as m:
@@ -40,7 +40,7 @@ def test_post_streams_probes_and_creates(client, fake_probe):
     assert body["youtube_id"] == "dQw4w9WgXcQ"
     assert body["title"] == "Coachella 2026"
     assert body["kind"] == "live"
-    mock.assert_called_once_with(info.url)
+    mock.assert_called_once_with(info.url, cookies_path=None)
 
 
 def test_post_streams_rejects_duplicate(client, fake_probe):
@@ -54,7 +54,7 @@ def test_post_streams_rejects_duplicate(client, fake_probe):
 def test_post_streams_returns_400_on_probe_error(client):
     from concertpvr.ytdlp import ProbeError
 
-    async def _raise(_url):
+    async def _raise(_url, **_kwargs):
         raise ProbeError("video unavailable")
 
     with patch("concertpvr.api.streams.probe", side_effect=_raise):

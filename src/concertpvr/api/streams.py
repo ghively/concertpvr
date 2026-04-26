@@ -29,8 +29,19 @@ async def create_stream(
     payload: StreamCreate,
     db: Database = Depends(get_db),  # noqa: B008
 ) -> Stream:
+    from pathlib import Path as _Path
+
+    from concertpvr.models import Settings as _SettingsModel
+
+    with db.session() as _s:
+        _row = _s.get(_SettingsModel, 1)
+        cookies = (
+            _Path(_row.yt_dlp_cookies_path)
+            if _row is not None and _row.yt_dlp_cookies_path
+            else None
+        )
     try:
-        info = await probe(payload.url)
+        info = await probe(payload.url, cookies_path=cookies)
     except ProbeError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 

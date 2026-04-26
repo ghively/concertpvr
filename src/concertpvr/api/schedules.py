@@ -38,8 +38,19 @@ async def create_schedule(
                 raise HTTPException(status_code=404, detail="stream not found")
         stream_id = payload.stream_id
     else:
+        from pathlib import Path as _Path
+
+        from concertpvr.models import Settings as _SettingsModel
+
+        with db.session() as _s:
+            _row = _s.get(_SettingsModel, 1)
+            _cookies = (
+                _Path(_row.yt_dlp_cookies_path)
+                if _row is not None and _row.yt_dlp_cookies_path
+                else None
+            )
         try:
-            info = await probe(payload.url)  # type: ignore[arg-type]
+            info = await probe(payload.url, cookies_path=_cookies)  # type: ignore[arg-type]
         except ProbeError as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
 
