@@ -124,3 +124,43 @@ def test_watch_subscription_patch_creates_then_updates(client, fake_probe):
 def test_watch_subscription_patch_404_for_unknown_stream(client):
     r = client.patch("/api/streams/9999/watch", json={"enabled": True})
     assert r.status_code == 404
+
+
+def test_enabling_watch_starts_recorder(client, fake_probe, monkeypatch):
+    """Patching enabled=True should call pool.start with a worker for that stream."""
+    from unittest.mock import AsyncMock, MagicMock
+    started_workers = []
+
+    async def fake_start(worker):
+        started_workers.append(worker)
+
+    fake_pool = MagicMock()
+    fake_pool.is_recording = MagicMock(return_value=False)
+    fake_pool.start = AsyncMock(side_effect=fake_start)
+    fake_pool.stop = AsyncMock()
+    monkeypatch.setattr(client.app.state, "pool", fake_pool)
+
+    _, info = fake_probe
+    sid = client.post("/api/streams", json={"url": info.url}).json()["id"]
+    client.patch(f"/api/streams/{sid}/watch", json={"enabled": True})
+
+    assert len(started_workers) == 1
+    assert started_workers[0].stream_id == sid
+
+
+def test_disabling_watch_stops_recorder(client, fake_probe, monkeypatch):
+    from unittest.mock import AsyncMock, MagicMock
+    fake_pool = MagicMock()
+    # Simulate: not recording before first PATCH, recording after.
+    is_recording_calls = iter([False, True])
+    fake_pool.is_recording = MagicMock(side_effect=lambda sid: next(is_recording_calls))
+    fake_pool.start = AsyncMock()
+    fake_pool.stop = AsyncMock()
+    monkeypatch.setattr(client.app.state, "pool", fake_pool)
+
+    _, info = fake_probe
+    sid = client.post("/api/streams", json={"url": info.url}).json()["id"]
+    client.patch(f"/api/streams/{sid}/watch", json={"enabled": True})
+    client.patch(f"/api/streams/{sid}/watch", json={"enabled": False})
+
+    fake_pool.stop.assert_awaited_with(sid)

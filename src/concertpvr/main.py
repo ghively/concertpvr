@@ -42,7 +42,8 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
     yield
 
     app.state.scheduler.shutdown(wait=False)
-    if hasattr(app.state.pool, "wait_all"):
+    import asyncio as _asyncio
+    if hasattr(app.state.pool, "wait_all") and _asyncio.iscoroutinefunction(app.state.pool.wait_all):
         await app.state.pool.wait_all()
     app.state.db.engine.dispose()
 
