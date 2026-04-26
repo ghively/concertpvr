@@ -3,7 +3,7 @@ import datetime as dt
 from sqlalchemy import text
 
 from concertpvr.db import Database
-from concertpvr.models import Base, Recording, Settings, Stream, WatchSubscription
+from concertpvr.models import Base, Recording, Schedule, Settings, Stream, WatchSubscription
 
 
 def test_database_connects_and_pings(tmp_path):
@@ -89,3 +89,29 @@ def test_recording_belongs_to_stream(tmp_path):
         assert loaded is not None
         assert loaded.is_buffer is True
         assert loaded.status == "recording"
+
+
+def test_schedule_round_trip(tmp_path):
+    db = Database(f"sqlite:///{tmp_path / 'test.db'}")
+    Base.metadata.create_all(db.engine)
+
+    with db.session() as s:
+        stream = Stream(kind="live", youtube_id="z1", url="u", title="t", channel_name="c")
+        s.add(stream)
+        s.flush()
+        sch = Schedule(
+            stream_id=stream.id,
+            starts_at=dt.datetime(2026, 5, 1, 19, 0, tzinfo=dt.timezone.utc),
+            ends_at=dt.datetime(2026, 5, 1, 21, 0, tzinfo=dt.timezone.utc),
+            artist="Phish",
+        )
+        s.add(sch)
+        s.flush()
+        sid = sch.id
+
+    with db.session() as s:
+        loaded = s.get(Schedule, sid)
+        assert loaded is not None
+        assert loaded.artist == "Phish"
+        assert loaded.status == "pending"
+        assert loaded.recording_id is None

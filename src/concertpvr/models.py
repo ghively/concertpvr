@@ -103,3 +103,23 @@ class Recording(Base):
     error: Mapped[str | None] = mapped_column(String, nullable=True)
 
     stream = relationship("Stream", back_populates="recordings")
+
+
+class Schedule(Base):
+    __tablename__ = "schedules"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    stream_id: Mapped[int] = mapped_column(
+        ForeignKey("streams.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    starts_at: Mapped[_dt.datetime] = mapped_column(DateTime, nullable=False)
+    ends_at: Mapped[_dt.datetime] = mapped_column(DateTime, nullable=False)
+    artist: Mapped[str | None] = mapped_column(String, nullable=True)
+    status: Mapped[str] = mapped_column(String, nullable=False, default="pending")
+    error: Mapped[str | None] = mapped_column(String, nullable=True)
+    recording_id: Mapped[int | None] = mapped_column(
+        ForeignKey("recordings.id", ondelete="SET NULL"), nullable=True
+    )
+
+    stream = relationship("Stream")
+    recording = relationship("Recording")
