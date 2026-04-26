@@ -61,6 +61,9 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
 
     app.state.schedule_manager.rehydrate_from_db(app.state.db)
 
+    from concertpvr.auto_segment import register as _register_auto_segment
+    _register_auto_segment()
+
     from concertpvr.emby import EmbyClient
     from concertpvr.models import Settings as SettingsModel
     from concertpvr.publisher import PublishWorker
