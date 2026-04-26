@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -48,8 +49,10 @@ class RecorderWorker:
             "--hls-prefer-native",
             "--newline",
             "--no-part",
-            "-f", self.quality_format,
-            "-o", str(self.output_dir / "%(epoch)s_%(id)s.%(ext)s"),
+            "-f",
+            self.quality_format,
+            "-o",
+            str(self.output_dir / "%(epoch)s_%(id)s.%(ext)s"),
             self.url,
         ]
 
@@ -67,10 +70,8 @@ class RecorderWorker:
             rc = await wait_task
         finally:
             progress_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await progress_task
-            except asyncio.CancelledError:
-                pass
 
         return rc
 

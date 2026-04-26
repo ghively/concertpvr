@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 
 from concertpvr.recorder import RecorderWorker
 
@@ -17,9 +18,7 @@ class RecorderPool:
         if worker.stream_id in self._workers:
             raise ValueError(f"already recording stream {worker.stream_id}")
         if len(self._workers) >= self.max_concurrent:
-            raise RuntimeError(
-                f"recorder pool at capacity ({self.max_concurrent})"
-            )
+            raise RuntimeError(f"recorder pool at capacity ({self.max_concurrent})")
         self._workers[worker.stream_id] = worker
 
         async def runner_task() -> int:
@@ -38,10 +37,8 @@ class RecorderPool:
         worker.stop()
         task = self._tasks.get(stream_id)
         if task is not None:
-            try:
+            with contextlib.suppress(Exception):
                 await task
-            except Exception:
-                pass
 
     def is_recording(self, stream_id: int) -> bool:
         return stream_id in self._workers

@@ -71,14 +71,12 @@ def test_recording_belongs_to_stream(tmp_path):
     Base.metadata.create_all(db.engine)
 
     with db.session() as s:
-        stream = Stream(
-            kind="live", youtube_id="x1", url="u", title="t", channel_name="c"
-        )
+        stream = Stream(kind="live", youtube_id="x1", url="u", title="t", channel_name="c")
         s.add(stream)
         s.flush()
         rec = Recording(
             stream_id=stream.id,
-            started_at=dt.datetime(2026, 4, 25, 12, 0, tzinfo=dt.timezone.utc),
+            started_at=dt.datetime(2026, 4, 25, 12, 0, tzinfo=dt.UTC),
             path="/buffer/1/00.ts",
             is_buffer=True,
         )

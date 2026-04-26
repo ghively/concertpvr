@@ -14,8 +14,12 @@ def _make_worker(stream_id: int, tmp: Path, runner, *, blocking: bool = False) -
         return None
 
     return RecorderWorker(
-        stream_id=stream_id, url=f"u{stream_id}", output_dir=tmp / str(stream_id),
-        quality_format="best", runner=runner, on_progress=noop,
+        stream_id=stream_id,
+        url=f"u{stream_id}",
+        output_dir=tmp / str(stream_id),
+        quality_format="best",
+        runner=runner,
+        on_progress=noop,
     )
 
 

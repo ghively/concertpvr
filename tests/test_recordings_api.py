@@ -17,18 +17,18 @@ def client(tmp_path, monkeypatch):
 def _seed(client, n: int) -> int:
     db = client.app.state.db
     with db.session() as s:
-        stream = Stream(
-            kind="live", youtube_id=f"a{n}", url="u", title="t", channel_name="c"
-        )
+        stream = Stream(kind="live", youtube_id=f"a{n}", url="u", title="t", channel_name="c")
         s.add(stream)
         s.flush()
         for i in range(n):
-            s.add(Recording(
-                stream_id=stream.id,
-                started_at=dt.datetime(2026, 4, 25, 12, i, tzinfo=dt.timezone.utc),
-                path=f"/buf/{i}",
-                is_buffer=True,
-            ))
+            s.add(
+                Recording(
+                    stream_id=stream.id,
+                    started_at=dt.datetime(2026, 4, 25, 12, i, tzinfo=dt.UTC),
+                    path=f"/buf/{i}",
+                    is_buffer=True,
+                )
+            )
         return stream.id
 
 

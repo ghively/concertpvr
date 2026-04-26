@@ -117,9 +117,10 @@ class _FakeManagedProcess:
     async def wait(self) -> int:
         await self._done.wait()
         if self._killed:
-            return -signal.SIGKILL.value if sys.platform != "win32" else -9
+            sigkill_val = signal.SIGKILL.value if hasattr(signal, "SIGKILL") else 9
+            return -sigkill_val
         if self._terminated:
-            return -signal.SIGTERM.value if sys.platform != "win32" else -15
+            return -signal.SIGTERM.value
         return self._exit_code
 
     def terminate(self) -> None:

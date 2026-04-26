@@ -16,4 +16,5 @@ def build_prune_job(db: Database, buf: BufferManager) -> Callable[[], Awaitable[
             pairs = [(sub.stream_id, sub.retention_days) for sub in subs]
         for stream_id, retention in pairs:
             buf.prune_older_than(stream_id, retention)
+
     return prune

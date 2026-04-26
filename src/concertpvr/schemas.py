@@ -1,5 +1,8 @@
 """Pydantic request/response models."""
 
+import datetime as _dt
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -33,10 +36,6 @@ class SettingsPatch(BaseModel):
     yt_dlp_cookies_path: str | None = None
 
 
-import datetime as _dt
-from typing import Literal
-
-
 class StreamRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -52,6 +51,7 @@ class StreamRead(BaseModel):
 
 class StreamCreate(BaseModel):
     """Payload for POST /api/streams. Just a URL — server probes the rest."""
+
     model_config = ConfigDict(extra="forbid")
 
     url: str
@@ -70,6 +70,7 @@ class WatchSubscriptionRead(BaseModel):
 
 class WatchSubscriptionPatch(BaseModel):
     """Toggle or update the watch config for a stream."""
+
     model_config = ConfigDict(extra="forbid")
 
     enabled: bool | None = None

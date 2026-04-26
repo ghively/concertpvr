@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from concertpvr.ytdlp import StreamInfo, ProbeError, probe
+from concertpvr.ytdlp import ProbeError, StreamInfo, probe
 
 FIXTURE = Path(__file__).parent / "fixtures" / "ytdlp_live_info.json"
 
@@ -28,6 +28,7 @@ def fake_extract(monkeypatch):
         pass
 
     import yt_dlp
+
     monkeypatch.setattr(yt_dlp.YoutubeDL, "__init__", _fake_init)
     monkeypatch.setattr(yt_dlp.YoutubeDL, "extract_info", _fake_extract)
     monkeypatch.setattr(yt_dlp.YoutubeDL, "close", _fake_close)

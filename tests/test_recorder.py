@@ -85,8 +85,12 @@ async def test_recorder_stop_triggers_terminate(tmp_path: Path, monkeypatch):
         return None
 
     worker = RecorderWorker(
-        stream_id=1, url="u", output_dir=tmp_path,
-        quality_format="best", runner=fake, on_progress=noop,
+        stream_id=1,
+        url="u",
+        output_dir=tmp_path,
+        quality_format="best",
+        runner=fake,
+        on_progress=noop,
     )
 
     async def stop_soon():

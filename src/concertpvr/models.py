@@ -59,7 +59,7 @@ class Stream(Base):
     channel_name: Mapped[str] = mapped_column(String, nullable=False)
     thumbnail_url: Mapped[str | None] = mapped_column(String, nullable=True)
     added_at: Mapped[_dt.datetime] = mapped_column(
-        DateTime, nullable=False, default=lambda: _dt.datetime.now(_dt.timezone.utc)
+        DateTime, nullable=False, default=lambda: _dt.datetime.now(_dt.UTC)
     )
 
     subscription = relationship(

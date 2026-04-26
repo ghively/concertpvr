@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
-from apscheduler.jobstores.memory import MemoryJobStore
-from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.jobstores.memory import MemoryJobStore  # type: ignore[import-untyped]
+from apscheduler.jobstores.sqlalchemy import (  # type: ignore[import-untyped]
+    SQLAlchemyJobStore,
+)
+from apscheduler.schedulers.asyncio import AsyncIOScheduler  # type: ignore[import-untyped]
 
 from concertpvr.db import Database
 

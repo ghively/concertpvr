@@ -8,10 +8,10 @@ from collections.abc import AsyncIterator
 
 class Broadcaster:
     def __init__(self) -> None:
-        self._topics: dict[str, set[asyncio.Queue[dict]]] = {}
+        self._topics: dict[str, set[asyncio.Queue[dict[str, object]]]] = {}
 
-    async def subscribe(self, topic: str) -> AsyncIterator[dict]:
-        q: asyncio.Queue[dict] = asyncio.Queue()
+    async def subscribe(self, topic: str) -> AsyncIterator[dict[str, object]]:
+        q: asyncio.Queue[dict[str, object]] = asyncio.Queue()
         self._topics.setdefault(topic, set()).add(q)
         try:
             while True:
@@ -22,7 +22,7 @@ class Broadcaster:
             if not self._topics.get(topic):
                 self._topics.pop(topic, None)
 
-    async def publish(self, topic: str, message: dict) -> None:
+    async def publish(self, topic: str, message: dict[str, object]) -> None:
         for q in list(self._topics.get(topic, ())):
             await q.put(message)
 

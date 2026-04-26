@@ -19,27 +19,34 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
     app.state.db = Database(cfg.db_url)
 
     from concertpvr.models import Base
+
     Base.metadata.create_all(app.state.db.engine)
 
     from concertpvr.models import Settings as SettingsModel
+
     with app.state.db.session() as s:
         row = s.get(SettingsModel, 1)
         max_concurrent = row.max_concurrent_recordings if row else 4
 
     from concertpvr.buffer import BufferManager
+
     app.state.buffer = BufferManager(cfg.buffer_dir)
 
     from concertpvr.ws import Broadcaster
+
     app.state.broadcaster = Broadcaster()
 
     from concertpvr.pool import RecorderPool
+
     app.state.pool = RecorderPool(max_concurrent=max_concurrent)
 
     from concertpvr.scheduler import build_scheduler
+
     app.state.scheduler = build_scheduler(app.state.db)
     app.state.scheduler.start()
 
     from concertpvr.retention import build_prune_job
+
     app.state.scheduler.add_job(
         build_prune_job(app.state.db, app.state.buffer),
         "interval",
@@ -53,7 +60,10 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
 
     app.state.scheduler.shutdown(wait=False)
     import asyncio as _asyncio
-    if hasattr(app.state.pool, "wait_all") and _asyncio.iscoroutinefunction(app.state.pool.wait_all):
+
+    if hasattr(app.state.pool, "wait_all") and _asyncio.iscoroutinefunction(
+        app.state.pool.wait_all
+    ):
         await app.state.pool.wait_all()
     app.state.db.engine.dispose()
 
@@ -64,14 +74,17 @@ def create_app() -> FastAPI:
     from concertpvr.api.health import router as health_router
     from concertpvr.api.settings import router as settings_router
     from concertpvr.api.streams import router as streams_router
+
     app.include_router(health_router, prefix="/api")
     app.include_router(settings_router, prefix="/api")
     app.include_router(streams_router, prefix="/api")
 
     from concertpvr.api.recordings import router as recordings_router
+
     app.include_router(recordings_router, prefix="/api")
 
     from concertpvr.api.ws_progress import router as ws_router
+
     app.include_router(ws_router)  # no /api prefix — /ws/... is its own namespace
 
     cfg = Config()

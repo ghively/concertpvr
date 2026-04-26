@@ -5,7 +5,6 @@ import pytest
 from concertpvr.db import Database
 from concertpvr.scheduler import build_scheduler
 
-
 # Module-level — APScheduler's SQLAlchemyJobStore pickles jobs by qualified name,
 # so the callable and its mutable counter must live at module scope.
 _fire_counter: list[bool] = []

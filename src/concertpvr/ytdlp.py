@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 
-import yt_dlp
+import yt_dlp  # type: ignore[import-untyped]
 
 
 class ProbeError(Exception):
@@ -26,7 +26,7 @@ class StreamInfo:
     thumbnail_url: str | None
 
 
-def _extract_sync(url: str) -> dict:
+def _extract_sync(url: str) -> dict[str, object]:
     opts = {
         "quiet": True,
         "no_warnings": True,
@@ -34,7 +34,10 @@ def _extract_sync(url: str) -> dict:
         "noplaylist": True,
     }
     with yt_dlp.YoutubeDL(opts) as ydl:
-        return ydl.extract_info(url, download=False)
+        result = ydl.extract_info(url, download=False)
+        if result is None:
+            raise ProbeError("no info returned")
+        return result  # type: ignore[no-any-return]
 
 
 async def probe(url: str) -> StreamInfo:
@@ -49,14 +52,20 @@ async def probe(url: str) -> StreamInfo:
     except Exception as e:
         raise ProbeError(f"unexpected error: {e}") from e
 
-    if info is None:
-        raise ProbeError("no info returned")
+    youtube_id: str = info["id"]  # type: ignore[assignment]
+    webpage_url: str = info.get("webpage_url", url) or url  # type: ignore[assignment]
+    title: str = info.get("title", "Untitled") or "Untitled"  # type: ignore[assignment]
+    channel: str = (
+        info.get("channel") or info.get("uploader") or "Unknown"  # type: ignore[assignment]
+    )
+    is_live: bool = bool(info.get("is_live", False))
+    thumbnail_url: str | None = info.get("thumbnail")  # type: ignore[assignment]
 
     return StreamInfo(
-        youtube_id=info["id"],
-        url=info.get("webpage_url", url),
-        title=info.get("title", "Untitled"),
-        channel_name=info.get("channel") or info.get("uploader") or "Unknown",
-        is_live=bool(info.get("is_live", False)),
-        thumbnail_url=info.get("thumbnail"),
+        youtube_id=youtube_id,
+        url=webpage_url,
+        title=title,
+        channel_name=channel,
+        is_live=is_live,
+        thumbnail_url=thumbnail_url,
     )

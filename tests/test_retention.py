@@ -27,9 +27,7 @@ def test_prune_job_actually_prunes(client):
     buf = client.app.state.buffer
 
     with db.session() as s:
-        stream = Stream(
-            kind="live", youtube_id="x", url="u", title="t", channel_name="c"
-        )
+        stream = Stream(kind="live", youtube_id="x", url="u", title="t", channel_name="c")
         stream.subscription = WatchSubscription(retention_days=7)
         s.add(stream)
         s.flush()

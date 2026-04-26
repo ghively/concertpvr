@@ -11,11 +11,17 @@ from sqlalchemy.exc import IntegrityError
 from concertpvr.buffer import BufferManager
 from concertpvr.db import Database
 from concertpvr.deps import get_broadcaster, get_buffer, get_db, get_pool
-from concertpvr.models import Recording, Settings as SettingsModel, Stream, WatchSubscription
+from concertpvr.models import Recording, Stream, WatchSubscription
+from concertpvr.models import Settings as SettingsModel
 from concertpvr.pool import RecorderPool
 from concertpvr.process import AsyncSubprocessRunner
 from concertpvr.recorder import RecorderProgress, RecorderWorker
-from concertpvr.schemas import StreamCreate, StreamRead, WatchSubscriptionPatch, WatchSubscriptionRead
+from concertpvr.schemas import (
+    StreamCreate,
+    StreamRead,
+    WatchSubscriptionPatch,
+    WatchSubscriptionRead,
+)
 from concertpvr.ws import Broadcaster
 from concertpvr.ytdlp import ProbeError, probe
 
@@ -91,9 +97,7 @@ def get_watch(stream_id: int, db: Database = Depends(get_db)) -> WatchSubscripti
     with db.session() as s:
         if s.get(Stream, stream_id) is None:
             raise HTTPException(status_code=404, detail="stream not found")
-        sub = s.scalar(
-            select(WatchSubscription).where(WatchSubscription.stream_id == stream_id)
-        )
+        sub = s.scalar(select(WatchSubscription).where(WatchSubscription.stream_id == stream_id))
         if sub is None:
             raise HTTPException(status_code=404, detail="no subscription")
         s.expunge(sub)
@@ -115,9 +119,7 @@ async def patch_watch(
         if stream is None:
             raise HTTPException(status_code=404, detail="stream not found")
 
-        sub = s.scalar(
-            select(WatchSubscription).where(WatchSubscription.stream_id == stream_id)
-        )
+        sub = s.scalar(select(WatchSubscription).where(WatchSubscription.stream_id == stream_id))
         if sub is None:
             sub = WatchSubscription(stream_id=stream_id)
             s.add(sub)
@@ -180,7 +182,7 @@ async def _start_recording(
     with db.session() as s:
         rec = Recording(
             stream_id=stream_id,
-            started_at=_dt.datetime.now(_dt.timezone.utc),
+            started_at=_dt.datetime.now(_dt.UTC),
             path=str(output_dir),
             status="recording",
             is_buffer=True,

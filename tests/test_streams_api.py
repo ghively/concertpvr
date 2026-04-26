@@ -129,6 +129,7 @@ def test_watch_subscription_patch_404_for_unknown_stream(client):
 def test_enabling_watch_starts_recorder(client, fake_probe, monkeypatch):
     """Patching enabled=True should call pool.start with a worker for that stream."""
     from unittest.mock import AsyncMock, MagicMock
+
     started_workers = []
 
     async def fake_start(worker):
@@ -150,6 +151,7 @@ def test_enabling_watch_starts_recorder(client, fake_probe, monkeypatch):
 
 def test_disabling_watch_stops_recorder(client, fake_probe, monkeypatch):
     from unittest.mock import AsyncMock, MagicMock
+
     fake_pool = MagicMock()
     # Simulate: not recording before first PATCH, recording after.
     is_recording_calls = iter([False, True])
