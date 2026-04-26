@@ -112,3 +112,41 @@ export const recordingsApi = {
   },
   get: (id: number) => api.get<Recording>(`/api/recordings/${id}`),
 };
+
+// ── Schedules ───────────────────────────────────────────────────────────────
+
+export type ScheduleStatus = "pending" | "running" | "complete" | "failed" | "cancelled";
+
+export type Schedule = {
+  id: number;
+  stream_id: number;
+  starts_at: string;
+  ends_at: string;
+  artist: string | null;
+  status: ScheduleStatus;
+  error: string | null;
+  recording_id: number | null;
+};
+
+export type ScheduleCreate = {
+  url?: string;
+  stream_id?: number;
+  starts_at: string;
+  ends_at: string;
+  artist?: string | null;
+};
+
+export type SchedulePatch = {
+  starts_at?: string;
+  ends_at?: string;
+  artist?: string | null;
+  status?: "pending" | "cancelled";
+};
+
+export const schedulesApi = {
+  list: () => api.get<Schedule[]>("/api/schedules"),
+  get: (id: number) => api.get<Schedule>(`/api/schedules/${id}`),
+  create: (p: ScheduleCreate) => api.post<Schedule>("/api/schedules", p),
+  patch: (id: number, p: SchedulePatch) => api.patch<Schedule>(`/api/schedules/${id}`, p),
+  delete: (id: number) => api.delete<void>(`/api/schedules/${id}`),
+};

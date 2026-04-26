@@ -96,3 +96,47 @@ export function useRecordings(streamId?: number) {
     queryFn: () => recordingsApi.list(streamId),
   });
 }
+
+import {
+  type Schedule,
+  type ScheduleCreate,
+  type SchedulePatch,
+  schedulesApi,
+} from "./api";
+
+export const schedulesKeys = {
+  all: ["schedules"] as const,
+  one: (id: number) => ["schedules", id] as const,
+};
+
+export function useSchedules() {
+  return useQuery<Schedule[]>({
+    queryKey: schedulesKeys.all,
+    queryFn: () => schedulesApi.list(),
+    refetchInterval: 30_000,
+  });
+}
+
+export function useCreateSchedule() {
+  const qc = useQueryClient();
+  return useMutation<Schedule, Error, ScheduleCreate>({
+    mutationFn: (p) => schedulesApi.create(p),
+    onSuccess: () => qc.invalidateQueries({ queryKey: schedulesKeys.all }),
+  });
+}
+
+export function useUpdateSchedule(id: number) {
+  const qc = useQueryClient();
+  return useMutation<Schedule, Error, SchedulePatch>({
+    mutationFn: (p) => schedulesApi.patch(id, p),
+    onSuccess: () => qc.invalidateQueries({ queryKey: schedulesKeys.all }),
+  });
+}
+
+export function useDeleteSchedule() {
+  const qc = useQueryClient();
+  return useMutation<void, Error, number>({
+    mutationFn: (id) => schedulesApi.delete(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: schedulesKeys.all }),
+  });
+}
