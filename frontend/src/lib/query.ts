@@ -234,3 +234,14 @@ export function useDeleteChannelWatcher() {
     onSuccess: () => qc.invalidateQueries({ queryKey: watchersKeys.all }),
   });
 }
+
+import { type SessionState, authApi } from "./api";
+
+export function useSession() {
+  return useQuery<SessionState>({
+    queryKey: ["auth", "me"],
+    queryFn: () => authApi.me(),
+    retry: false,
+    staleTime: 30_000,
+  });
+}
