@@ -1,4 +1,4 @@
-import { useStreams, useRecordings, useSchedules } from "@/lib/query";
+import { useStreams, useRecordings, useSchedules, useSettings } from "@/lib/query";
 import { StatStrip } from "@/components/StatStrip";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,8 @@ export default function DashboardPage() {
   const { data: streams } = useStreams();
   const { data: recordings } = useRecordings();
   const { data: schedules } = useSchedules();
+  const { data: settings } = useSettings();
+  const max = settings?.max_concurrent_recordings ?? 4;
 
   const recordingNow = (recordings ?? []).filter((r) => r.status === "recording");
   const completed = (recordings ?? []).filter((r) => r.status === "complete").length;
@@ -33,7 +35,7 @@ export default function DashboardPage() {
 
       <StatStrip
         items={[
-          { label: "Recording now", value: recordingNow.length, color: "terra" },
+          { label: "Recording now", value: `${recordingNow.length}/${max}`, color: "terra" },
           { label: "Streams tracked", value: streams?.length ?? 0, color: "amber" },
           { label: "Scheduled", value: upcoming.length, color: "mauve" },
           { label: "Completed", value: completed, color: "sage" },

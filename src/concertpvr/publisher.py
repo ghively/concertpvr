@@ -63,20 +63,23 @@ class PublishWorker:
 
         try:
             if year is None:
-                year = rec_started.year if rec_started else _dt.datetime.now().year
+                year = rec_started.year if rec_started else _dt.datetime.now(_dt.UTC).year
             if festival is None:
                 festival = stream_title.split("—")[0].strip() if stream_title else None
             if venue is None and "—" in stream_title:
                 venue = stream_title.split("—", 1)[1].strip()
 
-            folder_name = self._folder_pattern.format(
-                artist=artist,
-                festival=festival or "",
-                venue=venue or "",
-                year=year,
-                date=rec_started.date().isoformat() if rec_started else "",
-                title=title or artist,
-            ).strip()
+            try:
+                folder_name = self._folder_pattern.format(
+                    artist=artist,
+                    festival=festival or "",
+                    venue=venue or "",
+                    year=year,
+                    date=rec_started.date().isoformat() if rec_started else "",
+                    title=title or artist,
+                ).strip()
+            except (KeyError, IndexError) as e:
+                raise ValueError(f"invalid folder_pattern token: {e}") from e
             folder_name = " ".join(folder_name.split())
 
             target_dir = self._publish_root / folder_name

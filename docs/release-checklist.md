@@ -68,3 +68,9 @@ Run through this before tagging a new version. Everything must pass.
 
 - [ ] `docker compose down`
 - [ ] Restart with `docker compose up -d` — schedules persist (rehydrated on startup), buffer fragments persist, segments + setlists persist
+
+## Reliability (added v0.2)
+
+- [ ] After unclean shutdown (e.g. `docker compose kill concertpvr`), restart the container — any "recording" rows in the Recordings tab now show `interrupted`.
+- [ ] At max concurrent (Settings > max_concurrent_recordings = N), starting an N+1th recording: button shows "Pool full" + disabled; if invoked via API directly, returns 507.
+- [ ] Settings → folder_pattern field rejects `{invalid_token}` with a 422 error.

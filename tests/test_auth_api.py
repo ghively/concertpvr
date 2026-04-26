@@ -108,3 +108,13 @@ def test_set_password_change_requires_current(client):
         "/api/auth/set-password", json={"new_password": "new", "current_password": "old"}
     )
     assert r.status_code == 204
+
+
+def test_session_secret_exists_at_boot(client):
+    """Lifespan ensures Settings row + session_secret on startup."""
+    db = client.app.state.db
+    with db.session() as s:
+        row = s.get(Settings, 1)
+        assert row is not None
+        assert row.session_secret is not None
+        assert len(row.session_secret) > 16

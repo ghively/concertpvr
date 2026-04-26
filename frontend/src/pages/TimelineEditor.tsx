@@ -31,6 +31,8 @@ export default function TimelineEditorPage() {
   const deleteMut = useDeleteSegment(recordingId);
   const publishMut = usePublishSegment(recordingId);
 
+  const savingId = updateMut.isPending ? (updateMut.variables?.id ?? null) : null;
+
   const [publishingId, setPublishingId] = useState<number | null>(null);
   const [localSegments, setLocalSegments] = useState<Segment[]>([]);
   useEffect(() => setLocalSegments(segments), [segments]);
@@ -160,6 +162,7 @@ export default function TimelineEditorPage() {
             onDelete={(id) => deleteMut.mutate(id)}
             onPublish={onPublish}
             publishingId={publishingId}
+            savingId={savingId}
           />
         </div>
       </div>

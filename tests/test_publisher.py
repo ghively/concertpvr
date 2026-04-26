@@ -125,3 +125,26 @@ async def test_publish_404s_when_segment_missing(db, tmp_path):
     )
     with pytest.raises(LookupError):
         await worker.publish(9999, year=2026)
+
+
+@pytest.mark.asyncio
+async def test_publish_marks_failed_on_invalid_folder_pattern(db, tmp_path, fixture_video):
+    seg_id = _seed(db, fixture_video)
+
+    worker = PublishWorker(
+        db=db,
+        runner=AsyncSubprocessRunner(),
+        publish_root=tmp_path / "media",
+        folder_pattern="{nonsense_token}",  # invalid
+        emby_client=MagicMock(trigger_path_scan=AsyncMock()),
+    )
+
+    with pytest.raises(ValueError):
+        await worker.publish(seg_id, year=2026)
+
+    with db.session() as s:
+        seg = s.get(Segment, seg_id)
+        assert seg.status == "publish_failed"
+        assert (
+            "folder_pattern" in (seg.error or "").lower() or "invalid" in (seg.error or "").lower()
+        )

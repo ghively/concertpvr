@@ -59,3 +59,16 @@ def test_patching_emby_config_rebuilds_client(client):
     )
 
     assert client.app.state.emby_client.configured is True
+
+
+def test_patch_settings_rejects_invalid_folder_pattern(client):
+    r = client.patch("/api/settings", json={"folder_pattern": "{bogus_token}"})
+    assert r.status_code == 422
+    body = r.json()
+    assert "folder_pattern" in str(body).lower()
+
+
+def test_patch_settings_accepts_valid_folder_pattern(client):
+    r = client.patch("/api/settings", json={"folder_pattern": "{artist} ({year})"})
+    assert r.status_code == 200
+    assert r.json()["folder_pattern"] == "{artist} ({year})"

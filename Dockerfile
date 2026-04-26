@@ -22,6 +22,9 @@ WORKDIR /app
 COPY pyproject.toml ./
 RUN pip install --no-cache-dir .
 
+# Sanity-check that yt-dlp installed correctly. Build fails fast if it didn't.
+RUN yt-dlp --version
+
 COPY src/ ./src/
 COPY alembic.ini ./
 COPY alembic/ ./alembic/

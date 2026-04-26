@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
@@ -90,9 +90,18 @@ async def create_schedule(
 
 
 @router.get("/schedules", response_model=list[ScheduleRead])
-def list_schedules(db: Database = Depends(get_db)) -> list[Schedule]:  # noqa: B008
+def list_schedules(
+    limit: int | None = Query(None, ge=1, le=10000),  # noqa: B008
+    offset: int = Query(0, ge=0),  # noqa: B008
+    db: Database = Depends(get_db),  # noqa: B008
+) -> list[Schedule]:
     with db.session() as s:
-        rows = list(s.scalars(select(Schedule).order_by(Schedule.starts_at.asc())))
+        stmt = select(Schedule).order_by(Schedule.starts_at.asc())
+        if limit is not None:
+            stmt = stmt.limit(limit).offset(offset)
+        elif offset > 0:
+            stmt = stmt.offset(offset)
+        rows = list(s.scalars(stmt))
         for r in rows:
             s.expunge(r)
     return rows

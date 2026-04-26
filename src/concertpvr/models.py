@@ -123,7 +123,7 @@ class Schedule(Base):
     status: Mapped[str] = mapped_column(String, nullable=False, default="pending")
     error: Mapped[str | None] = mapped_column(String, nullable=True)
     recording_id: Mapped[int | None] = mapped_column(
-        ForeignKey("recordings.id", ondelete="SET NULL"), nullable=True
+        ForeignKey("recordings.id", ondelete="SET NULL"), nullable=True, index=True
     )
 
     stream = relationship("Stream")

@@ -24,12 +24,21 @@ router = APIRouter()
 @router.get("/recordings", response_model=list[RecordingRead])
 def list_recordings(
     stream_id: int | None = Query(None),
+    status: str | None = Query(None),
+    limit: int | None = Query(None, ge=1, le=10000),  # noqa: B008
+    offset: int = Query(0, ge=0),  # noqa: B008
     db: Database = Depends(get_db),  # noqa: B008
 ) -> list[Recording]:
     with db.session() as s:
         stmt = select(Recording).order_by(Recording.started_at.desc())
         if stream_id is not None:
             stmt = stmt.where(Recording.stream_id == stream_id)
+        if status is not None:
+            stmt = stmt.where(Recording.status == status)
+        if limit is not None:
+            stmt = stmt.limit(limit).offset(offset)
+        elif offset > 0:
+            stmt = stmt.offset(offset)
         rows = list(s.scalars(stmt))
         for r in rows:
             s.expunge(r)

@@ -87,9 +87,15 @@ async def poll_all_channel_watchers(
                 triggered_id = b.youtube_id
                 break
             except Exception as e:  # noqa: BLE001
-                logger.warning(
-                    "watcher %s: failed to start recording for %s: %s", w_id, b.youtube_id, e
-                )
+                if "capacity" in str(e).lower():
+                    logger.info("watcher %s: pool full; skipping %s", w_id, b.youtube_id)
+                else:
+                    logger.warning(
+                        "watcher %s: failed to start recording for %s: %s",
+                        w_id,
+                        b.youtube_id,
+                        e,
+                    )
 
         with db.session() as s:
             w = s.get(ChannelWatcher, w_id)

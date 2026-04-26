@@ -31,6 +31,7 @@ interface Props {
   onDelete: (id: number) => void;
   onPublish: (id: number) => void;
   publishingId: number | null;
+  savingId: number | null;
 }
 
 export function SegmentSidebar({
@@ -41,6 +42,7 @@ export function SegmentSidebar({
   onDelete,
   onPublish,
   publishingId,
+  savingId,
 }: Props) {
   const confirm = useConfirm();
 
@@ -57,6 +59,7 @@ export function SegmentSidebar({
       {segments.map((seg) => {
         const isSelected = seg.id === selectedSegmentId;
         const isPublishing = publishingId === seg.id;
+        const isSaving = savingId === seg.id;
         return (
           <Card
             key={seg.id}
@@ -71,6 +74,9 @@ export function SegmentSidebar({
                 onClick={(e) => e.stopPropagation()}
               />
               <Badge color={STATUS_COLOR[seg.status]}>{seg.status}</Badge>
+              {isSaving && (
+                <span className="text-[10px] text-amber animate-pulse">saving…</span>
+              )}
             </div>
             <Input
               value={seg.title ?? ""}
