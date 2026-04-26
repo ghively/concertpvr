@@ -95,3 +95,38 @@ class RecordingRead(BaseModel):
     status: Literal["recording", "complete", "failed", "interrupted"]
     is_buffer: bool
     error: str | None
+
+
+class ScheduleRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    stream_id: int
+    starts_at: _dt.datetime
+    ends_at: _dt.datetime
+    artist: str | None
+    status: Literal["pending", "running", "complete", "failed", "cancelled"]
+    error: str | None
+    recording_id: int | None
+
+
+class ScheduleCreate(BaseModel):
+    """Payload for POST /api/schedules. Either pass an existing stream_id, or a url
+    that the server will probe (and create a Stream row if absent)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    stream_id: int | None = None
+    url: str | None = None
+    starts_at: _dt.datetime
+    ends_at: _dt.datetime
+    artist: str | None = None
+
+
+class SchedulePatch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    starts_at: _dt.datetime | None = None
+    ends_at: _dt.datetime | None = None
+    artist: str | None = None
+    status: Literal["pending", "cancelled"] | None = None  # only these are user-settable

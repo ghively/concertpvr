@@ -22,7 +22,8 @@
       "Bash(xargs grep *)",
       "Bash(git tag *)",
       "Bash(git show-ref *)",
-      "Bash(git *)"
+      "Bash(git *)",
+      "Bash(grep -E \"\\\\.py$\")"
     ]
   }
 }
