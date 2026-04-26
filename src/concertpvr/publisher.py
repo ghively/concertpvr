@@ -63,7 +63,7 @@ class PublishWorker:
 
         try:
             if year is None:
-                year = rec_started.year if rec_started else _dt.datetime.now().year
+                year = rec_started.year if rec_started else _dt.datetime.now(_dt.UTC).year
             if festival is None:
                 festival = stream_title.split("—")[0].strip() if stream_title else None
             if venue is None and "—" in stream_title:
