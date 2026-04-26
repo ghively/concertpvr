@@ -57,14 +57,24 @@ def test_unit_marks_interrupted(tmp_path):
         stream = Stream(kind="live", youtube_id="x", url="u", title="t", channel_name="c")
         s.add(stream)
         s.flush()
-        s.add_all([
-            Recording(stream_id=stream.id,
-                      started_at=dt.datetime.now(dt.UTC),
-                      path="/tmp/a", status="recording", is_buffer=True),
-            Recording(stream_id=stream.id,
-                      started_at=dt.datetime.now(dt.UTC),
-                      path="/tmp/b", status="complete", is_buffer=False),
-        ])
+        s.add_all(
+            [
+                Recording(
+                    stream_id=stream.id,
+                    started_at=dt.datetime.now(dt.UTC),
+                    path="/tmp/a",
+                    status="recording",
+                    is_buffer=True,
+                ),
+                Recording(
+                    stream_id=stream.id,
+                    started_at=dt.datetime.now(dt.UTC),
+                    path="/tmp/b",
+                    status="complete",
+                    is_buffer=False,
+                ),
+            ]
+        )
 
     count = mark_interrupted_on_startup(db)
     assert count == 1

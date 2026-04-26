@@ -92,7 +92,9 @@ async def poll_all_channel_watchers(
                 else:
                     logger.warning(
                         "watcher %s: failed to start recording for %s: %s",
-                        w_id, b.youtube_id, e,
+                        w_id,
+                        b.youtube_id,
+                        e,
                     )
 
         with db.session() as s:

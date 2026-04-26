@@ -174,9 +174,7 @@ def test_enabling_watch_returns_507_when_pool_at_capacity(client, fake_probe, mo
 
     fake_pool = MagicMock()
     fake_pool.is_recording = MagicMock(return_value=False)
-    fake_pool.start = AsyncMock(
-        side_effect=RuntimeError("recorder pool at capacity (4)")
-    )
+    fake_pool.start = AsyncMock(side_effect=RuntimeError("recorder pool at capacity (4)"))
     fake_pool.stop = AsyncMock()
     monkeypatch.setattr(client.app.state, "pool", fake_pool)
 

@@ -1,5 +1,40 @@
 # Changelog
 
+## v0.2.0 — 2026-04-26
+
+### Reliability
+
+- Pool-at-capacity now returns HTTP 507 (was 500); UI disables the "Start buffer" button when full.
+- Crashed mid-record? On restart, orphaned `recording`-status rows are marked `interrupted` automatically.
+- `folder_pattern` setting is validated on save (rejects `{invalid_token}`); publisher catches any leftover bad patterns and marks the segment `publish_failed` instead of crashing.
+- `session_secret` is generated eagerly at boot — eliminates a tiny race window during password set.
+- Publisher's UTC-year fallback no longer uses local time.
+
+### Performance
+
+- Library page now makes a single `/api/segments?status=published` call instead of N+1 per recording.
+- Index added on `schedules.recording_id`.
+
+### API
+
+- `GET /api/recordings` and `GET /api/segments` now accept `?status=...` to filter.
+- All list endpoints (`/api/streams`, `/api/recordings`, `/api/segments`, `/api/schedules`) accept optional `?limit=N&offset=M`. Default unchanged (unlimited).
+
+### UX
+
+- Saving indicator appears next to a segment when its time edit is in flight.
+- Dashboard "Recording now" stat shows fraction (e.g. "2/4").
+
+### Build
+
+- Dockerfile sanity-checks `yt-dlp` install during build.
+
+### Resolved from v0.1.1 audit
+
+All 12 items from the v0.1.1 audit are addressed. The "Recording → Schedule reverse lookup" item is still deferred (would require a migration to add `schedule_id` to recordings); workaround documented in `docs/operations/troubleshooting.md`.
+
+---
+
 ## v0.1.0 — 2026-04-26
 
 First release. Built across 6 implementation phases, all merged to main.
