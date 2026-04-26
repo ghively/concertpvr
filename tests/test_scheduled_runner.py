@@ -1,4 +1,3 @@
-import asyncio
 import datetime as dt
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
@@ -25,10 +24,22 @@ def app_state(tmp_path: Path):
     bc = Broadcaster()
     runner = FakeProcessRunner()
 
-    register_app(db=db, pool=pool, buf=buf, bc=bc, runner_factory=lambda: runner,
-                 staging_root=tmp_path / "staging")
-    yield {"db": db, "pool": pool, "buf": buf, "bc": bc, "runner": runner,
-           "staging": tmp_path / "staging"}
+    register_app(
+        db=db,
+        pool=pool,
+        buf=buf,
+        bc=bc,
+        runner_factory=lambda: runner,
+        staging_root=tmp_path / "staging",
+    )
+    yield {
+        "db": db,
+        "pool": pool,
+        "buf": buf,
+        "bc": bc,
+        "runner": runner,
+        "staging": tmp_path / "staging",
+    }
     unregister_app()
 
 
@@ -38,11 +49,12 @@ async def test_run_creates_recording_and_starts_worker(app_state, monkeypatch):
 
     db = app_state["db"]
     with db.session() as s:
-        stream = Stream(kind="live", youtube_id="z1", url="https://example.com",
-                        title="t", channel_name="c")
+        stream = Stream(
+            kind="live", youtube_id="z1", url="https://example.com", title="t", channel_name="c"
+        )
         s.add(stream)
         s.flush()
-        now = dt.datetime.now(dt.timezone.utc)
+        now = dt.datetime.now(dt.UTC)
         sch = Schedule(
             stream_id=stream.id,
             starts_at=now,
@@ -80,15 +92,15 @@ async def test_run_marks_failed_when_stream_missing(app_state):
         s.flush()
         sch = Schedule(
             stream_id=stream.id,
-            starts_at=dt.datetime.now(dt.timezone.utc),
-            ends_at=dt.datetime.now(dt.timezone.utc) + dt.timedelta(seconds=1),
+            starts_at=dt.datetime.now(dt.UTC),
+            ends_at=dt.datetime.now(dt.UTC) + dt.timedelta(seconds=1),
         )
         s.add(sch)
         s.flush()
         schedule_id = sch.id
         s.delete(stream)
 
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         await run_scheduled_recording(schedule_id)
 
 

@@ -101,8 +101,8 @@ def test_schedule_round_trip(tmp_path):
         s.flush()
         sch = Schedule(
             stream_id=stream.id,
-            starts_at=dt.datetime(2026, 5, 1, 19, 0, tzinfo=dt.timezone.utc),
-            ends_at=dt.datetime(2026, 5, 1, 21, 0, tzinfo=dt.timezone.utc),
+            starts_at=dt.datetime(2026, 5, 1, 19, 0, tzinfo=dt.UTC),
+            ends_at=dt.datetime(2026, 5, 1, 21, 0, tzinfo=dt.UTC),
             artist="Phish",
         )
         s.add(sch)

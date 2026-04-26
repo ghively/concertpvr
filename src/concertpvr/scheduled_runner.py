@@ -58,10 +58,17 @@ def unregister_app() -> None:
     _AppRefs.staging_root = None
 
 
-def _require_refs() -> tuple[Database, RecorderPool, BufferManager, Broadcaster,
-                              Callable[[], ProcessRunner], Path]:
-    refs = (_AppRefs.db, _AppRefs.pool, _AppRefs.buf, _AppRefs.bc,
-            _AppRefs.runner_factory, _AppRefs.staging_root)
+def _require_refs() -> tuple[
+    Database, RecorderPool, BufferManager, Broadcaster, Callable[[], ProcessRunner], Path
+]:
+    refs = (
+        _AppRefs.db,
+        _AppRefs.pool,
+        _AppRefs.buf,
+        _AppRefs.bc,
+        _AppRefs.runner_factory,
+        _AppRefs.staging_root,
+    )
     if any(r is None for r in refs):
         raise RuntimeError("scheduled_runner: register_app() not called")
     return refs  # type: ignore[return-value]
@@ -79,7 +86,7 @@ async def run_scheduled_recording(schedule_id: int) -> None:
         if stream is None:
             sch.status = "failed"
             sch.error = "stream not found"
-            raise RuntimeError(f"schedule {schedule_id}: stream {sch.stream_id} not found")
+            raise ValueError(f"schedule {schedule_id}: stream {sch.stream_id} not found")
         url = stream.url
         ends_at = sch.ends_at
         stream_id = stream.id
@@ -90,7 +97,7 @@ async def run_scheduled_recording(schedule_id: int) -> None:
     with db.session() as s:
         rec = Recording(
             stream_id=stream_id,
-            started_at=_dt.datetime.now(_dt.timezone.utc),
+            started_at=_dt.datetime.now(_dt.UTC),
             path=str(output_dir),
             status="recording",
             is_buffer=False,
@@ -129,11 +136,11 @@ async def run_scheduled_recording(schedule_id: int) -> None:
     await pool.start(worker)
 
     try:
-        now = _dt.datetime.now(_dt.timezone.utc)
+        now = _dt.datetime.now(_dt.UTC)
         # Both starts_at and ends_at should be timezone-aware UTC.
         # If ends_at lacks tz, treat as UTC.
         if ends_at.tzinfo is None:
-            ends_at = ends_at.replace(tzinfo=_dt.timezone.utc)
+            ends_at = ends_at.replace(tzinfo=_dt.UTC)
         delay = max(0.0, (ends_at - now).total_seconds())
         await asyncio.sleep(delay)
     finally:
@@ -141,9 +148,9 @@ async def run_scheduled_recording(schedule_id: int) -> None:
 
     with db.session() as s:
         sch = s.get(Schedule, schedule_id)
-        rec = s.get(Recording, rec_id)
+        rec_obj = s.get(Recording, rec_id)
         if sch is not None:
             sch.status = "complete"
-        if rec is not None:
-            rec.status = "complete"
-            rec.ended_at = _dt.datetime.now(_dt.timezone.utc)
+        if rec_obj is not None:
+            rec_obj.status = "complete"
+            rec_obj.ended_at = _dt.datetime.now(_dt.UTC)

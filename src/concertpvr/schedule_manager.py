@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import contextlib
 import datetime as _dt
 
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.schedulers.asyncio import AsyncIOScheduler  # type: ignore[import-untyped]
 from sqlalchemy import select
 
 from concertpvr.db import Database
@@ -46,10 +47,9 @@ class ScheduleManager:
         )
 
     def remove(self, schedule_id: int) -> None:
-        try:
+        # idempotent — already gone
+        with contextlib.suppress(Exception):  # noqa: BLE001
             self._sched.remove_job(_job_id(schedule_id))
-        except Exception:  # noqa: BLE001
-            pass  # idempotent — already gone
 
     def has_job(self, schedule_id: int) -> bool:
         return self._sched.get_job(_job_id(schedule_id)) is not None
@@ -59,7 +59,7 @@ class ScheduleManager:
 
         Returns count of jobs added. Called once at app startup.
         """
-        now = _dt.datetime.now(_dt.timezone.utc)
+        now = _dt.datetime.now(_dt.UTC)
         count = 0
         with db.session() as s:
             stmt = select(Schedule).where(

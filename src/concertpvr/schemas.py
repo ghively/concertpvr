@@ -113,6 +113,7 @@ class ScheduleRead(BaseModel):
 class ScheduleCreate(BaseModel):
     """Payload for POST /api/schedules. Either pass an existing stream_id, or a url
     that the server will probe (and create a Stream row if absent)."""
+
     model_config = ConfigDict(extra="forbid")
 
     stream_id: int | None = None

@@ -33,8 +33,8 @@ async def test_add_creates_apscheduler_job(tmp_path):
         with db.session() as s:
             sch = Schedule(
                 stream_id=sid,
-                starts_at=dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=1),
-                ends_at=dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=2),
+                starts_at=dt.datetime.now(dt.UTC) + dt.timedelta(hours=1),
+                ends_at=dt.datetime.now(dt.UTC) + dt.timedelta(hours=2),
             )
             s.add(sch)
             s.flush()
@@ -57,8 +57,8 @@ async def test_remove_deletes_job(tmp_path):
         with db.session() as s:
             sch = Schedule(
                 stream_id=sid,
-                starts_at=dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=1),
-                ends_at=dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=2),
+                starts_at=dt.datetime.now(dt.UTC) + dt.timedelta(hours=1),
+                ends_at=dt.datetime.now(dt.UTC) + dt.timedelta(hours=2),
             )
             s.add(sch)
             s.flush()
@@ -83,15 +83,15 @@ async def test_update_changes_run_time(tmp_path):
         with db.session() as s:
             sch = Schedule(
                 stream_id=sid,
-                starts_at=dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=1),
-                ends_at=dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=2),
+                starts_at=dt.datetime.now(dt.UTC) + dt.timedelta(hours=1),
+                ends_at=dt.datetime.now(dt.UTC) + dt.timedelta(hours=2),
             )
             s.add(sch)
             s.flush()
             mgr.add(sch)
             sid2 = sch.id
 
-            sch.starts_at = dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=3)
+            sch.starts_at = dt.datetime.now(dt.UTC) + dt.timedelta(hours=3)
             mgr.update(sch)
 
         job = sched.get_job(f"schedule_{sid2}")
@@ -111,18 +111,24 @@ async def test_rehydrate_loads_pending_schedules_only(tmp_path):
         mgr = ScheduleManager(sched)
         sid = _seed_stream(db)
         with db.session() as s:
-            now = dt.datetime.now(dt.timezone.utc)
+            now = dt.datetime.now(dt.UTC)
             future = Schedule(
-                stream_id=sid, starts_at=now + dt.timedelta(hours=1),
-                ends_at=now + dt.timedelta(hours=2), status="pending",
+                stream_id=sid,
+                starts_at=now + dt.timedelta(hours=1),
+                ends_at=now + dt.timedelta(hours=2),
+                status="pending",
             )
             past_done = Schedule(
-                stream_id=sid, starts_at=now - dt.timedelta(hours=2),
-                ends_at=now - dt.timedelta(hours=1), status="complete",
+                stream_id=sid,
+                starts_at=now - dt.timedelta(hours=2),
+                ends_at=now - dt.timedelta(hours=1),
+                status="complete",
             )
             cancelled = Schedule(
-                stream_id=sid, starts_at=now + dt.timedelta(hours=1),
-                ends_at=now + dt.timedelta(hours=2), status="cancelled",
+                stream_id=sid,
+                starts_at=now + dt.timedelta(hours=1),
+                ends_at=now + dt.timedelta(hours=2),
+                status="cancelled",
             )
             s.add_all([future, past_done, cancelled])
             s.flush()

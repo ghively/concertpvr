@@ -9,14 +9,15 @@ from sqlalchemy.exc import IntegrityError
 from concertpvr.db import Database
 from concertpvr.deps import get_db
 from concertpvr.models import Schedule, Stream
+from concertpvr.schedule_manager import ScheduleManager
 from concertpvr.schemas import ScheduleCreate, SchedulePatch, ScheduleRead
 from concertpvr.ytdlp import ProbeError, probe
 
 router = APIRouter()
 
 
-def _get_manager(request: Request):
-    return request.app.state.schedule_manager
+def _get_manager(request: Request) -> ScheduleManager:
+    return request.app.state.schedule_manager  # type: ignore[no-any-return]
 
 
 @router.post("/schedules", response_model=ScheduleRead, status_code=status.HTTP_201_CREATED)
@@ -49,8 +50,11 @@ async def create_schedule(
             else:
                 stream = Stream(
                     kind="live" if info.is_live else "video",
-                    youtube_id=info.youtube_id, url=info.url, title=info.title,
-                    channel_name=info.channel_name, thumbnail_url=info.thumbnail_url,
+                    youtube_id=info.youtube_id,
+                    url=info.url,
+                    title=info.title,
+                    channel_name=info.channel_name,
+                    thumbnail_url=info.thumbnail_url,
                 )
                 s.add(stream)
                 try:
