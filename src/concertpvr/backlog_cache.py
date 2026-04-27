@@ -3,6 +3,14 @@
 Stores a one-shot snapshot of the entire channel (via yt-dlp flat-extract)
 so the backlog browser can sort/filter/paginate locally over the whole
 channel instead of the most-recent 50.
+
+DESIGN INVARIANT: this module NEVER triggers downloads. It populates a
+metadata-only cache for the browse view. Downloads happen only when the user
+explicitly selects video_ids and POSTs to the backlog/download endpoint. The
+channel poller's forward-only auto-pull is a separate code path that does not
+read this cache and is gated on `watcher.created_at` to skip backlog uploads.
+Do not add download/queue logic here — it would couple two systems that the
+v0.3 spec deliberately keeps independent.
 """
 
 from __future__ import annotations

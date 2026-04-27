@@ -11,9 +11,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response,
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
+from concertpvr.backlog_cache import fetch_full_channel, is_stale
 from concertpvr.db import Database
 from concertpvr.deps import get_db
-from concertpvr.models import ChannelWatcher, Recording, Stream
+from concertpvr.models import ChannelBacklogCache, ChannelWatcher, Recording, Stream
 from concertpvr.recording_starter import _resolve_cookies_path
 from concertpvr.schemas import (
     BacklogDownloadRequest,
@@ -23,7 +24,7 @@ from concertpvr.schemas import (
     ChannelWatcherRead,
 )
 from concertpvr.ytdlp import ProbeError, probe
-from concertpvr.ytdlp_channels import ChannelProbeError, list_recent_uploads, probe_channel
+from concertpvr.ytdlp_channels import ChannelProbeError, probe_channel
 
 logger = logging.getLogger(__name__)
 
@@ -125,84 +126,191 @@ def delete_watcher(watcher_id: int, db: Database = Depends(get_db)) -> Response:
     return Response(status_code=204)
 
 
+@router.get("/channel-watchers/{watcher_id}/backlog/status")
+def get_watcher_backlog_status(
+    watcher_id: int,
+    db: Database = Depends(get_db),  # noqa: B008
+) -> dict[str, object]:
+    """Cache state — frontend polls this while a refresh is in flight."""
+    with db.session() as s:
+        watcher = s.get(ChannelWatcher, watcher_id)
+        if watcher is None:
+            raise HTTPException(status_code=404, detail="watcher not found")
+        cache = s.get(ChannelBacklogCache, watcher_id)
+        if cache is None:
+            return {
+                "status": "never_fetched",
+                "fetched_at": None,
+                "total_count": 0,
+                "progress_pct": 0,
+                "error": None,
+                "stale": True,
+            }
+        return {
+            "status": cache.status,
+            "fetched_at": cache.fetched_at.isoformat() if cache.fetched_at else None,
+            "total_count": cache.total_count,
+            "progress_pct": cache.progress_pct,
+            "error": cache.error,
+            "stale": is_stale(cache),
+        }
+
+
+@router.post(
+    "/channel-watchers/{watcher_id}/backlog/refresh",
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def refresh_watcher_backlog(
+    watcher_id: int,
+    request: Request,
+    db: Database = Depends(get_db),  # noqa: B008
+) -> dict[str, object]:
+    """Trigger an async full-channel cache refresh.
+
+    Returns 202 immediately; cache populates in the background. Poll
+    /backlog/status for progress. The client should re-GET /backlog
+    once status flips to 'complete'.
+    """
+    import asyncio as _asyncio
+
+    with db.session() as s:
+        watcher = s.get(ChannelWatcher, watcher_id)
+        if watcher is None:
+            raise HTTPException(status_code=404, detail="watcher not found")
+        cache = s.get(ChannelBacklogCache, watcher_id)
+        if cache is not None and cache.status == "fetching":
+            # Already in flight — don't queue another fetch.
+            return {"status": "fetching", "started": False}
+
+    # Fire-and-forget background fetch. Errors are caught + persisted to the
+    # cache row by fetch_full_channel itself.
+    async def _bg() -> None:
+        try:
+            await fetch_full_channel(db, watcher_id)
+        except Exception:  # noqa: BLE001
+            logger.exception("background fetch_full_channel failed for %d", watcher_id)
+
+    _asyncio.create_task(_bg())
+    return {"status": "fetching", "started": True}
+
+
 @router.get(
     "/channel-watchers/{watcher_id}/backlog",
     response_model=list[BacklogItem],
 )
 async def get_watcher_backlog(
     watcher_id: int,
+    request: Request,
     limit: int = Query(50, ge=1, le=200),  # noqa: B008
     offset: int = Query(0, ge=0),  # noqa: B008
-    sort: Literal["newest", "most_viewed", "longest", "oldest"] = Query("newest"),  # noqa: B008
+    sort: Literal["newest", "longest", "oldest"] = Query("newest"),  # noqa: B008
+    q: str | None = Query(None),  # noqa: B008
     db: Database = Depends(get_db),  # noqa: B008
 ) -> list[BacklogItem]:
+    """Browse the channel's backlog. Reads from per-watcher cache.
+
+    Sort/filter/paginate runs against the WHOLE channel snapshot (not just
+    the most recent N). On first call (or when cache is stale), auto-triggers
+    a background refresh and returns whatever cached data exists (possibly
+    empty). Frontend should poll /backlog/status to know when to re-GET.
+
+    NEVER triggers downloads. Backlog browse is metadata-only; downloads
+    happen exclusively via /backlog/download with explicit user-selected ids.
+    """
+    import asyncio as _asyncio
+
     with db.session() as s:
         watcher = s.get(ChannelWatcher, watcher_id)
         if watcher is None:
             raise HTTPException(status_code=404, detail="watcher not found")
-        channel_url = watcher.channel_url
+        cache = s.get(ChannelBacklogCache, watcher_id)
+        items_raw: list[dict[str, object]] = (
+            list(cache.items_json) if cache is not None and cache.items_json else []
+        )
+        cache_status = cache.status if cache is not None else "never_fetched"
+        cache_stale = is_stale(cache)
 
-    cookies_path = _resolve_cookies_path(db)
+    # Auto-trigger background refresh on first hit / stale cache.
+    if cache_stale and cache_status != "fetching":
 
-    raw_items = await list_recent_uploads(
-        channel_url, cookies_path=cookies_path, limit=offset + limit
-    )
+        async def _bg() -> None:
+            try:
+                await fetch_full_channel(db, watcher_id)
+            except Exception:  # noqa: BLE001
+                logger.exception("background fetch_full_channel (auto) failed for %d", watcher_id)
 
-    # Sort before slicing
+        _asyncio.create_task(_bg())
+
+    # Optional title filter (substring, case-insensitive).
+    if q:
+        q_lower = q.lower()
+        items_raw = [it for it in items_raw if q_lower in str(it.get("title", "")).lower()]
+
+    # Sort across the WHOLE cached list. yt-dlp returns newest-first by default.
     if sort == "oldest":
-        raw_items = sorted(
-            raw_items,
-            key=lambda b: b.upload_date or _dt.date.min,
-        )
+        items_raw = sorted(items_raw, key=lambda it: str(it.get("upload_date") or ""))
     elif sort == "longest":
-        raw_items = sorted(
-            raw_items,
-            key=lambda b: b.duration_s if b.duration_s is not None else -1,
-            reverse=True,
-        )
-    # "newest" is the default yt-dlp upload order (already sorted newest-first)
-    # "most_viewed" — yt-dlp flat-extract doesn't return view counts cheaply;
-    # returning default order as a no-op
 
-    page = raw_items[offset : offset + limit]
+        def _dur(it: dict[str, object]) -> int:
+            d = it.get("duration_s")
+            return int(d) if isinstance(d, (int, float)) else 0
 
-    # Build a set of known youtube_ids for state classification
-    youtube_ids = [b.youtube_id for b in page]
-    with db.session() as s:
-        stream_rows = list(s.scalars(select(Stream).where(Stream.youtube_id.in_(youtube_ids))))
-        known_stream_ids = {row.youtube_id: row.id for row in stream_rows}
+        items_raw = sorted(items_raw, key=_dur, reverse=True)
+    # "newest" — preserve existing order (yt-dlp returns newest first).
 
-        # Find recordings that are in queued/downloading state for these streams
-        queued_stream_ids: set[int] = set()
-        if known_stream_ids:
-            rec_rows = list(
-                s.scalars(
-                    select(Recording).where(
-                        Recording.stream_id.in_(known_stream_ids.values()),
-                        Recording.status.in_(["vod_queued", "vod_downloading"]),
+    page = items_raw[offset : offset + limit]
+
+    # State classification: join against existing Streams + active Recordings.
+    youtube_ids = [str(it["youtube_id"]) for it in page]
+    known_stream_ids: dict[str, int] = {}
+    queued_stream_ids: set[int] = set()
+    if youtube_ids:
+        with db.session() as s:
+            stream_rows = list(s.scalars(select(Stream).where(Stream.youtube_id.in_(youtube_ids))))
+            known_stream_ids = {row.youtube_id: row.id for row in stream_rows}
+            if known_stream_ids:
+                rec_rows = list(
+                    s.scalars(
+                        select(Recording).where(
+                            Recording.stream_id.in_(known_stream_ids.values()),
+                            Recording.status.in_(["vod_queued", "vod_downloading"]),
+                        )
                     )
                 )
-            )
-            queued_stream_ids = {r.stream_id for r in rec_rows}
+                queued_stream_ids = {r.stream_id for r in rec_rows}
 
     result: list[BacklogItem] = []
-    for b in page:
-        if b.youtube_id not in known_stream_ids:
+    for it in page:
+        yid = str(it["youtube_id"])
+        if yid not in known_stream_ids:
             state: Literal["downloaded", "queued", "not_downloaded"] = "not_downloaded"
-        elif known_stream_ids[b.youtube_id] in queued_stream_ids:
+        elif known_stream_ids[yid] in queued_stream_ids:
             state = "queued"
         else:
             state = "downloaded"
 
+        upload_date_str = it.get("upload_date")
+        upload_date_val: _dt.date | None = None
+        if isinstance(upload_date_str, str) and upload_date_str:
+            try:
+                upload_date_val = _dt.date.fromisoformat(upload_date_str)
+            except ValueError:
+                upload_date_val = None
+
+        duration_s_raw = it.get("duration_s")
+        duration_s_val: int | None = (
+            int(duration_s_raw) if isinstance(duration_s_raw, (int, float)) else None
+        )
+
         result.append(
             BacklogItem(
-                youtube_id=b.youtube_id,
-                title=b.title,
-                url=b.url,
-                thumbnail_url=b.thumbnail_url,
-                upload_date=b.upload_date,
-                duration_s=b.duration_s,
-                view_count=None,  # flat-extract doesn't return view counts cheaply
+                youtube_id=yid,
+                title=str(it.get("title", "")),
+                url=str(it.get("url", "")),
+                thumbnail_url=(str(it["thumbnail_url"]) if it.get("thumbnail_url") else None),
+                upload_date=upload_date_val,
+                duration_s=duration_s_val,
+                view_count=None,  # flat-extract doesn't return view counts
                 state=state,
             )
         )
@@ -265,7 +373,9 @@ async def download_backlog_items(
             s.add(stream)
             s.flush()
 
-            output_path = _Path(staging_dir) / f"vod-{info.youtube_id}.mkv"
+            # %(ext)s template — yt-dlp picks the actual container; queue
+            # handler resolves to the real filename post-download.
+            output_path = _Path(staging_dir) / f"vod-{info.youtube_id}.%(ext)s"
             rec = Recording(
                 stream_id=stream.id,
                 started_at=_dt.datetime.now(_dt.UTC),

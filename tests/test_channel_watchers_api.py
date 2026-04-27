@@ -130,22 +130,45 @@ def _make_broadcast_items() -> list[BroadcastInfo]:
 
 
 def test_get_backlog_404_for_unknown_watcher(client):
-    with patch(
-        "concertpvr.api.channel_watchers.list_recent_uploads",
-        new=AsyncMock(return_value=[]),
-    ):
-        r = client.get("/api/channel-watchers/9999/backlog")
+    r = client.get("/api/channel-watchers/9999/backlog")
     assert r.status_code == 404
 
 
+def _seed_backlog_cache(client, watcher_id, items):
+    """Pre-populate the channel_backlog_cache row so GET /backlog reads it
+    instead of the auto-trigger path. Mirrors what fetch_full_channel writes."""
+    import datetime as _dtt
+
+    from concertpvr.models import ChannelBacklogCache
+
+    items_payload = [
+        {
+            "youtube_id": it.youtube_id,
+            "title": it.title,
+            "url": it.url,
+            "thumbnail_url": it.thumbnail_url,
+            "duration_s": it.duration_s,
+            "upload_date": it.upload_date.isoformat() if it.upload_date else None,
+        }
+        for it in items
+    ]
+    with client.app.state.db.session() as s:
+        cache = s.get(ChannelBacklogCache, watcher_id)
+        if cache is None:
+            cache = ChannelBacklogCache(watcher_id=watcher_id)
+            s.add(cache)
+        cache.status = "complete"
+        cache.fetched_at = _dtt.datetime.now(_dtt.UTC).replace(tzinfo=None)
+        cache.total_count = len(items_payload)
+        cache.items_json = items_payload
+
+
 def test_get_backlog_marks_existing_streams_as_downloaded(client, fake_probe):
-    # Create the watcher
     created = client.post(
         "/api/channel-watchers", json={"channel_url": "https://www.youtube.com/@nprmusic"}
     ).json()
     wid = created["id"]
 
-    # Seed a Stream with youtube_id "vid_aaa" into the DB
     from concertpvr.models import Stream
 
     with client.app.state.db.session() as s:
@@ -160,19 +183,52 @@ def test_get_backlog_marks_existing_streams_as_downloaded(client, fake_probe):
         s.add(stream)
         s.flush()
 
-    items = _make_broadcast_items()
-    with patch(
-        "concertpvr.api.channel_watchers.list_recent_uploads",
-        new=AsyncMock(return_value=items),
-    ):
-        r = client.get(f"/api/channel-watchers/{wid}/backlog")
+    _seed_backlog_cache(client, wid, _make_broadcast_items())
 
+    r = client.get(f"/api/channel-watchers/{wid}/backlog")
     assert r.status_code == 200
     body = r.json()
     assert len(body) == 2
     state_by_id = {item["youtube_id"]: item["state"] for item in body}
     assert state_by_id["vid_aaa"] == "downloaded"
     assert state_by_id["vid_bbb"] == "not_downloaded"
+
+
+def test_get_backlog_sort_longest_across_whole_cache(client, fake_probe):
+    """Verify v0.3.1 sort works across the whole cache, not just first 50."""
+    created = client.post(
+        "/api/channel-watchers", json={"channel_url": "https://www.youtube.com/@nprmusic"}
+    ).json()
+    wid = created["id"]
+
+    items = _make_broadcast_items()  # vid_aaa=3600s, vid_bbb=1800s
+    _seed_backlog_cache(client, wid, items)
+
+    r = client.get(f"/api/channel-watchers/{wid}/backlog?sort=longest")
+    assert r.status_code == 200
+    body = r.json()
+    assert body[0]["youtube_id"] == "vid_aaa"  # 3600s wins
+
+
+def test_get_backlog_status_reports_cache_state(client, fake_probe):
+    created = client.post(
+        "/api/channel-watchers", json={"channel_url": "https://www.youtube.com/@nprmusic"}
+    ).json()
+    wid = created["id"]
+
+    # No cache yet
+    r = client.get(f"/api/channel-watchers/{wid}/backlog/status")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["status"] == "never_fetched"
+    assert body["stale"] is True
+
+    _seed_backlog_cache(client, wid, _make_broadcast_items())
+    r = client.get(f"/api/channel-watchers/{wid}/backlog/status")
+    body = r.json()
+    assert body["status"] == "complete"
+    assert body["total_count"] == 2
+    assert body["stale"] is False
 
 
 def test_post_backlog_download_creates_recordings_and_enqueues(client, fake_probe, monkeypatch):

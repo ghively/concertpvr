@@ -108,10 +108,52 @@ def test_is_stale_for_old(db: Database) -> None:
         cache = ChannelBacklogCache(
             watcher_id=watcher_id,
             status="complete",
-            fetched_at=dt.datetime.now(dt.UTC).replace(tzinfo=None)
-            - dt.timedelta(days=2),
+            fetched_at=dt.datetime.now(dt.UTC).replace(tzinfo=None) - dt.timedelta(days=2),
         )
         s.add(cache)
         s.flush()
         s.refresh(cache)
         assert is_stale(cache) is True
+
+
+@pytest.mark.asyncio
+async def test_fetch_full_channel_does_not_trigger_downloads(db: Database) -> None:
+    """Guardrail: populating the backlog cache must NEVER queue a download.
+
+    The cache is metadata-only browsing infrastructure. Download queueing
+    only happens via explicit user action on the backlog/download endpoint
+    or via the channel poller's forward-only path. A future refactor
+    must not couple these systems.
+    """
+    watcher_id = _seed_watcher(db)
+    fake_items = [
+        BroadcastInfo(
+            youtube_id=f"item{i}",
+            url=f"https://x{i}",
+            title=f"Item {i}",
+            channel_name="Test",
+            is_live=False,
+            upload_date=dt.date(2024, 1, 1),
+            duration_s=120,
+            thumbnail_url="t",
+        )
+        for i in range(10)
+    ]
+    with patch(
+        "concertpvr.backlog_cache.list_all_uploads",
+        AsyncMock(return_value=fake_items),
+    ):
+        await fetch_full_channel(db, watcher_id)
+
+    # No Recording rows should exist after a full-channel fetch.
+    from concertpvr.models import Recording, Stream
+
+    with db.session() as s:
+        rec_count = len(list(s.scalars(select(Recording))))
+        stream_count_video = len(list(s.scalars(select(Stream).where(Stream.kind == "video"))))
+    assert rec_count == 0, (
+        f"backlog cache fetch created {rec_count} recordings — coupling violation"
+    )
+    assert stream_count_video == 0, (
+        f"backlog cache fetch created {stream_count_video} kind=video streams — coupling violation"
+    )
