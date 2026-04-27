@@ -292,7 +292,7 @@ function ChannelResultView({
   onCancel: () => void;
 }) {
   const [watchLive, setWatchLive] = useState(true);
-  const [watchVod, setWatchVod] = useState(true);
+  const [watchVod, setWatchVod] = useState(false);  // explicit opt-in
   const [autoPublish, setAutoPublish] = useState(false);
 
   const createWatcher = useMutation<
@@ -321,34 +321,55 @@ function ChannelResultView({
           <div className="font-medium text-sm">{result.channel_name}</div>
           <div className="text-xs text-ink-dim mt-0.5 truncate">{result.url}</div>
         </div>
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={watchLive}
-              onChange={(e) => setWatchLive(e.target.checked)}
-              className="accent-terracotta"
-            />
-            <span className="text-xs">Live broadcasts</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={watchVod}
-              onChange={(e) => setWatchVod(e.target.checked)}
-              className="accent-terracotta"
-            />
-            <span className="text-xs">New VOD uploads</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={autoPublish}
-              onChange={(e) => setAutoPublish(e.target.checked)}
-              className="accent-terracotta"
-            />
-            <span className="text-xs">Auto-publish segments</span>
-          </label>
+        <p className="text-xs text-ink-dim mb-2">
+          Subscribing only sets up monitoring. Choose what to do automatically:
+        </p>
+        <div className="space-y-3">
+          <div className="flex flex-col gap-1">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={watchLive}
+                onChange={(e) => setWatchLive(e.target.checked)}
+                className="accent-terracotta"
+              />
+              <span className="text-sm">Auto-record live broadcasts</span>
+            </label>
+            <p className="text-xs text-ink-faint pl-5">
+              When this channel goes live, start a buffer recording.
+            </p>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={watchVod}
+                onChange={(e) => setWatchVod(e.target.checked)}
+                className="accent-terracotta"
+              />
+              <span className="text-sm">Auto-download new VOD uploads (forward only)</span>
+            </label>
+            <p className="text-xs text-ink-faint pl-5">
+              Only uploads <strong>after</strong> subscribing get queued — never the
+              backlog. Browse the Backlog tab on the watcher page to manually pick
+              older videos.
+            </p>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={autoPublish}
+                onChange={(e) => setAutoPublish(e.target.checked)}
+                className="accent-terracotta"
+              />
+              <span className="text-sm">Auto-publish to Emby</span>
+            </label>
+            <p className="text-xs text-ink-faint pl-5">
+              Only enable for channels you trust completely (e.g. Tiny Desk, KEXP).
+              Wrong artist regex = silently wrong metadata in your library.
+            </p>
+          </div>
         </div>
         {createWatcher.isError && (
           <p className="text-xs text-red-400 mt-2">{createWatcher.error?.message}</p>
