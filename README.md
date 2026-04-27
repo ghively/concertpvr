@@ -2,20 +2,48 @@
 
 YouTube concert & livestream PVR with Emby integration. Runs on Synology NAS via Docker.
 
-**Current version:** v0.1.0 — see [`CHANGELOG.md`](CHANGELOG.md).
+**Current version:** v0.3.1 — see [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Features
 
+### Live recording
 - **Buffer YouTube live streams** with configurable retention; scrub back through any captured fragment via the Timeline editor.
 - **Schedule recordings** in advance (URL + start/end + optional artist tag).
 - **Channel watchers** auto-record any matching live broadcast every 60 seconds.
+
+### VOD downloads (v0.3+)
+- **Three workflows:** paste a single YouTube URL, subscribe to a channel for forward-only auto-pull, or ingest an entire playlist.
+- **Whole-channel backlog browser** (v0.3.1) — full-channel cache lets you sort by longest / oldest / newest across thousands of videos and manually pick what to download. Auto-pull from subscriptions never queues backlog.
+- **Setlist auto-detection** from YouTube chapters, description text, or top comments (opt-in per watcher).
+- **Per-watcher artist regex** extracts artist from titles (`Khruangbin: Tiny Desk Concert` → `Khruangbin`). No match → manual review fallback.
+- **Auto-publish** on trusted channels (off by default, explicit opt-in via the smart-paste modal).
+
+### Library + publishing
 - **Per-artist segmentation** from yt-dlp chapters, pasted setlists, or manual timeline marking.
+- **Per-segment + per-watcher genres** flow into NFO `<genre>` elements.
 - **Publish to Emby** — ffmpeg cuts the segment, generates `movie.nfo` + `poster.jpg` + `fanart.jpg`, drops it in your movies library, triggers a scan.
+- **Source-file lifecycle** — manual or auto-delete after all segments published.
+
+### Auth
 - **Single-password auth** for LAN deployments (optional — the app is open until you set a password from Settings).
 
 ## Status
 
-All planned phases shipped. See [`docs/superpowers/specs/2026-04-24-concertpvr-design.md`](docs/superpowers/specs/2026-04-24-concertpvr-design.md) for the design spec and [`docs/superpowers/plans/`](docs/superpowers/plans/) for the per-phase implementation plans.
+Active development. See [`CHANGELOG.md`](CHANGELOG.md) for shipped versions and [`docs/superpowers/plans/`](docs/superpowers/plans/) for the per-version implementation plans. Current track:
+
+- `v0.3.0` — VOD downloads shipped (Tiny Desk / KEXP / NPR / playlists).
+- `v0.3.1` — whole-channel backlog browse + VOD subscription safety + VOD progress UI shipped.
+- **`v0.3.2` (planned)** — VOD parity pass: dedicated `/recordings/vod` page, dedicated components, smart-paste consent defaults. Plan: [`docs/superpowers/plans/2026-04-27-v0.3.2-vod-parity.md`](docs/superpowers/plans/2026-04-27-v0.3.2-vod-parity.md).
+
+Original design spec: [`docs/superpowers/specs/2026-04-24-concertpvr-design.md`](docs/superpowers/specs/2026-04-24-concertpvr-design.md). VOD design spec: [`docs/superpowers/specs/2026-04-26-vod-downloads-design.md`](docs/superpowers/specs/2026-04-26-vod-downloads-design.md).
+
+## Audit harness
+
+v0.3.0 introduced four regression-prevention layers:
+- `tests/test_frontend_contracts.py` — every UI POST/PATCH payload validated against the backend Pydantic schema.
+- `tests/integration/test_real_yt_dlp.py` — env-gated real-network probes (`CPVR_INTEGRATION_TESTS=1`).
+- `scripts/smoke-docker.sh` — Docker build + healthcheck.
+- `scripts/smoke-e2e.sh` — full URL → download → publish flow against a real video.
 
 ## Deployment (Synology, Docker)
 

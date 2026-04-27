@@ -89,3 +89,43 @@ Run through this before tagging a new version. Everything must pass.
 - [ ] DELETE `/api/recordings/{id}/source` returns 409 when any segment is unpublished.
 - [ ] At max concurrent VOD downloads, queueing more keeps them in `vod_queued` state; live recordings unaffected.
 - [ ] Dashboard "Live now" + "VODs downloading" stat cards show correct fractions.
+
+## Whole-channel backlog (added v0.3.1)
+
+- [ ] Subscribe to a real channel (e.g. `https://www.youtube.com/@nprmusic`).
+- [ ] Open the Backlog tab — see the empty-cache prompt with a Refresh CTA.
+- [ ] Click Refresh. Spinner shows fetch in progress. After ~30s for big
+      channels, the grid populates with thousands of cards.
+- [ ] Sort by Longest — assert the longest video on the channel appears
+      first (not just the longest within the most recent 50).
+- [ ] Use the title filter — assert filtering operates across ALL cached
+      items, not just the current page.
+- [ ] After refresh: the "Last updated" line shows recent timestamp; clicking
+      Refresh again triggers a re-fetch.
+- [ ] Subscribe to a NEW channel with `watch_vod_uploads=true`. Wait one
+      poll cycle. Assert ZERO recordings are auto-queued (forward-only fix).
+- [ ] During an active download: VOD recording row shows live progress %
+      from the WebSocket — bar advances, ETA decreases, rate displays.
+- [ ] Every backlog card has a thumbnail (no null-fallback failures —
+      mqdefault.jpg should always render).
+
+## VOD parity (added v0.3.2)
+
+- [ ] Sidebar shows "VOD Downloads" as a peer-level entry between Recordings
+      and Library.
+- [ ] Visiting `/recordings/vod` on a fresh DB shows the empty state with a
+      clear prompt.
+- [ ] Pasting a YouTube video URL queues to `/recordings/vod`, not
+      `/recordings`.
+- [ ] Live recordings (when present) appear on `/recordings`, NOT
+      `/recordings/vod`.
+- [ ] Smart-paste channel subscribe: `watch_vod_uploads` defaults to **OFF**
+      and shows explicit copy explaining "forward only — backlog stays manual".
+- [ ] Subscribing with all toggles OFF and waiting one poll cycle creates
+      ZERO new recordings.
+- [ ] VodProgressBar (on `/recordings/vod` and the row component) shows live
+      progress percentage during a real download.
+- [ ] Failed VOD download shows a Retry button that re-queues the download.
+- [ ] Complete VOD download shows an "Open Review" button.
+- [ ] Published VOD download shows a "Delete source" button (with confirm
+      dialog).

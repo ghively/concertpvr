@@ -1,5 +1,73 @@
 # Changelog
 
+## v0.3.2 (planned) — 2026-04-27
+
+VOD parity pass. See implementation plan at
+`docs/superpowers/plans/2026-04-27-v0.3.2-vod-parity.md`. Closes the v0.3
+spec gap that "VOD downloads is a peer feature" rather than a special-case
+bolted onto live recordings.
+
+Highlights:
+- Dedicated `/recordings/vod` page with VOD-shaped action buttons.
+- Dedicated `VodQueueStrip`, `VodRecordingRow`, `VodProgressBar` components
+  (LiveProgressBar simplified to live-only).
+- Smart-paste channel subscribe: `watch_vod_uploads` defaults to **off**
+  with explicit consent copy on each toggle.
+- `Recording` model docstring documents the two distinct state machines
+  (live: recording → complete | failed | interrupted; VOD: vod_queued →
+  vod_downloading → complete | vod_failed).
+- Dedicated `tests/test_vod_workflow.py` mirrors the live test pattern.
+
+No schema changes; migration count stays at 9.
+
+---
+
+## v0.3.1 — 2026-04-27
+
+Whole-channel backlog browse + VOD subscription safety + VOD progress UI.
+
+### Backlog browse across the whole channel
+
+- New `channel_backlog_cache` table (migration 0009) — per-watcher
+  one-shot snapshot of the entire channel via flat-extract.
+- `GET /api/channel-watchers/{id}/backlog` reads from cache; sort/filter
+  /paginate runs against the WHOLE channel (was: only newest 50).
+- New endpoints: `GET .../backlog/status` (poll) +
+  `POST .../backlog/refresh` (async background fetch).
+- Removed `most_viewed` sort option (yt-dlp flat-extract has no view counts).
+- Frontend BacklogBrowser handles cache-empty / fetching / error states with
+  polling + manual Refresh button.
+
+### VOD subscription safety
+
+- **Forward-only filter fix:** when subscribing to a channel with
+  `watch_vod_uploads=true`, the previous filter let through any upload with
+  null `upload_date` (common for older videos). Result: 20+ Tiny Desk
+  videos auto-queued on subscription. Now: missing `upload_date` = skip,
+  and same-day uploads (`<=`) are also skipped. Only strictly-future
+  uploads get queued.
+- Backlog browse remains metadata-only — guardrail test in
+  `tests/test_backlog_cache.py` locks it in.
+
+### VOD download progress
+
+- New `/ws/recordings/{id}/progress` WebSocket endpoint subscribes to
+  the broadcaster topic populated by the queue handler.
+- New `VodProgressBar` component subscribes to that WS — shows live %, ETA,
+  bytes/rate during download.
+- Recordings page now uses `VodProgressBar` for `vod_downloading` rows
+  (was using a broken determinate-mode escape hatch on `LiveProgressBar`).
+
+### Other
+
+- `playlist_ingest.expand_playlist` cap bumped 500 → 5000 (covers all
+  realistic music playlists).
+- Thumbnail null-fallback to YouTube canonical CDN URL
+  (`https://i.ytimg.com/vi/{id}/mqdefault.jpg`) — every backlog item now
+  always has a thumbnail.
+
+---
+
 ## v0.3.0 — 2026-04-26
 
 ### Features

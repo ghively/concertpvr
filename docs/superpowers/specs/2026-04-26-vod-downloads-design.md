@@ -4,6 +4,12 @@
 **Target version:** v0.3.0
 **Baseline:** v0.2.0 (181 → 191 backend tests; concertpvr live + scheduled + channel-watcher PVR shipped)
 
+> **Follow-on plans:**
+> - `docs/superpowers/plans/2026-04-26-v0.3-audit.md` — diagnosis of integration gaps after the initial v0.3 ship.
+> - `docs/superpowers/plans/2026-04-26-v0.3-audit-execution.md` — the audit + stabilization that landed in v0.3.0 final.
+> - `docs/superpowers/plans/2026-04-26-vod-downloads.md` — original v0.3 implementation plan.
+> - `docs/superpowers/plans/2026-04-27-v0.3.2-vod-parity.md` — v0.3.2 parity pass (peer page, dedicated components, consent defaults).
+
 ## Goal
 
 Add support for downloading non-live YouTube performances — Tiny Desk Concerts, KEXP sessions, NPR Music Field Recordings, festival highlights, single-artist VODs — into concertpvr's library through three workflows: one-shot URL paste, channel subscription with auto-pull, and playlist ingest. Capture rich metadata (description, tags, detected setlists) at probe time. Allow auto-publish for trusted channels. Keep live recording behavior bit-identical for users who don't opt in.
