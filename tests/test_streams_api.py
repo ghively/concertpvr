@@ -209,3 +209,86 @@ def test_list_streams_supports_limit_and_offset(client, fake_probe, monkeypatch)
     assert len(r.json()) == 1
     r = client.get("/api/streams")  # default unlimited
     assert len(r.json()) == 3
+
+
+def test_post_streams_vod_creates_stream_and_queued_recording(client, monkeypatch):
+    """Pasting a non-live URL creates Stream(kind=video) + Recording(vod_queued)."""
+    from unittest.mock import AsyncMock, MagicMock
+
+    from concertpvr.ytdlp import StreamInfo
+
+    info = StreamInfo(
+        youtube_id="vod123",
+        url="https://www.youtube.com/watch?v=vod123",
+        title="Khruangbin: Tiny Desk Concert",
+        channel_name="NPR Music",
+        is_live=False,
+        thumbnail_url=None,
+        description="0:00 - Intro\n1:24 - Pelota\n5:12 - So We Won't Forget",
+        tags=["khruangbin", "indie"],
+        chapters=None,
+        duration_s=1122,
+    )
+
+    async def _async_probe(_url, **_kwargs):
+        return info
+
+    fake_queue = MagicMock()
+    fake_queue.enqueue = AsyncMock()
+    fake_queue.stop = AsyncMock()
+    monkeypatch.setattr(client.app.state, "vod_queue", fake_queue)
+
+    with patch("concertpvr.api.streams.probe", side_effect=_async_probe):
+        r = client.post("/api/streams", json={"url": info.url})
+    assert r.status_code == 201
+    body = r.json()
+    assert body["kind"] == "video"
+    assert body["youtube_id"] == "vod123"
+    assert body["description"].startswith("0:00")
+    assert body["detected_setlist_source"] == "description"
+
+    # Recording was created with vod_queued status
+    db = client.app.state.db
+    from sqlalchemy import select
+
+    from concertpvr.models import Recording, Stream
+
+    with db.session() as s:
+        st = s.scalar(select(Stream).where(Stream.youtube_id == "vod123"))
+        rec = s.scalar(select(Recording).where(Recording.stream_id == st.id))
+        assert rec is not None
+        assert rec.status == "vod_queued"
+        assert rec.is_buffer is False
+
+    # Queue.enqueue was called with the new recording id
+    fake_queue.enqueue.assert_awaited_once()
+
+
+def test_post_streams_vod_dedupe_409(client, monkeypatch):
+    """Posting the same VOD URL twice returns 201 then 409."""
+    from unittest.mock import AsyncMock, MagicMock
+
+    from concertpvr.ytdlp import StreamInfo
+
+    info = StreamInfo(
+        youtube_id="dup1",
+        url="https://www.youtube.com/watch?v=dup1",
+        title="t",
+        channel_name="c",
+        is_live=False,
+        thumbnail_url=None,
+    )
+
+    async def _p(_u, **_kw):
+        return info
+
+    fake_queue = MagicMock()
+    fake_queue.enqueue = AsyncMock()
+    fake_queue.stop = AsyncMock()
+    monkeypatch.setattr(client.app.state, "vod_queue", fake_queue)
+
+    with patch("concertpvr.api.streams.probe", side_effect=_p):
+        r1 = client.post("/api/streams", json={"url": info.url})
+        assert r1.status_code == 201
+        r2 = client.post("/api/streams", json={"url": info.url})
+        assert r2.status_code == 409

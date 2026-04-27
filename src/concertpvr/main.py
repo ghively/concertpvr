@@ -84,20 +84,99 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
         staging_root=cfg.staging_dir,
     )
 
-    # VOD queue setup. Handler wired in Task 7 (when vod_downloader exists).
-    from concertpvr.vod_queue import VodQueue
+    # VOD queue setup with real download handler.
+    import datetime as _dt_vod
+    from pathlib import Path as _PathVod
+
+    from concertpvr.ffmpeg import Splitter as _Splitter
+    from concertpvr.models import Recording as _Recording
     from concertpvr.models import Settings as _SettingsModel
+    from concertpvr.models import Stream as _Stream
+    from concertpvr.process import AsyncSubprocessRunner as _AsyncSubprocessRunner
+    from concertpvr.recording_starter import _resolve_cookies_path as _resolve_cookies
+    from concertpvr.vod_downloader import VodDownloadError as _VodDownloadError
+    from concertpvr.vod_downloader import VodDownloader as _VodDownloader
+    from concertpvr.vod_downloader import VodProgress as _VodProgress
+    from concertpvr.vod_queue import VodQueue
 
     with app.state.db.session() as _s:
         _row = _s.get(_SettingsModel, 1)
         _vod_cap = _row.max_concurrent_vod_downloads if _row else 2
 
-    async def _placeholder_vod_handler(rec_id: int) -> None:
-        # Replaced in Task 7 with real download.
-        raise RuntimeError("VOD handler not yet wired")
+    async def _vod_handler(rec_id: int) -> None:
+        with app.state.db.session() as s:
+            rec = s.get(_Recording, rec_id)
+            if rec is None:
+                return
+            stream = s.get(_Stream, rec.stream_id)
+            if stream is None:
+                rec.status = "vod_failed"
+                rec.error = "stream missing"
+                return
+            url = stream.url
+            output_path = _PathVod(rec.path)
+            settings_row = s.get(_SettingsModel, 1)
+            quality = (
+                settings_row.default_quality
+                if settings_row
+                else "bestvideo*+bestaudio/best"
+            )
+            rec.status = "vod_downloading"
+
+        cookies_path = _resolve_cookies(app.state.db)
+
+        async def on_progress(p: _VodProgress) -> None:
+            await app.state.broadcaster.publish(
+                f"recordings.{rec_id}.progress",
+                {
+                    "pct": p.pct,
+                    "bytes_total": p.bytes_total,
+                    "bitrate_bps": p.bitrate_bps,
+                    "eta_s": p.eta_s,
+                },
+            )
+
+        downloader = _VodDownloader(runner=_AsyncSubprocessRunner())
+        try:
+            await downloader.download(
+                url=url,
+                output_path=output_path,
+                quality_format=quality,
+                cookies_path=cookies_path,
+                on_progress=on_progress,
+            )
+        except _VodDownloadError as e:
+            with app.state.db.session() as s:
+                rec = s.get(_Recording, rec_id)
+                if rec is not None:
+                    rec.status = "vod_failed"
+                    rec.error = str(e)[:500]
+            return
+
+        # Run ffprobe to populate width/height/duration_s/size_bytes
+        media_info = None
+        try:
+            splitter = _Splitter(runner=_AsyncSubprocessRunner())
+            media_info = await splitter.probe(output_path)
+        except Exception:  # noqa: BLE001
+            pass
+
+        with app.state.db.session() as s:
+            rec = s.get(_Recording, rec_id)
+            if rec is None:
+                return
+            rec.status = "complete"
+            rec.ended_at = _dt_vod.datetime.now(_dt_vod.UTC)
+            if output_path.exists():
+                rec.size_bytes = output_path.stat().st_size
+            if media_info is not None:
+                rec.width = media_info.width
+                rec.height = media_info.height
+                rec.fps = int(media_info.fps)
+                rec.duration_s = int(media_info.duration_s)
 
     app.state.vod_queue = VodQueue(
-        db=app.state.db, handler=_placeholder_vod_handler, max_concurrent=_vod_cap,
+        db=app.state.db, handler=_vod_handler, max_concurrent=_vod_cap,
     )
     await app.state.vod_queue.start_workers()
     await app.state.vod_queue.rehydrate_from_db()
