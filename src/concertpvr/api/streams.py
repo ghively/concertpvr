@@ -3,11 +3,20 @@
 from __future__ import annotations
 
 import datetime as _dt
+import re
 from pathlib import Path as _Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
+
+# Smart-paste URL classification — detected before the single-video probe so
+# channel and playlist URLs short-circuit to their proper handlers (avoids
+# yt-dlp trying to enumerate every video on a channel like @nprmusic).
+_CHANNEL_URL_RE = re.compile(
+    r"youtube\.com/(?:@[^/?#]+|channel/[A-Za-z0-9_-]+|c/[^/?#]+|user/[^/?#]+)(?:/[^?#]*)?/?$"
+)
+_PLAYLIST_URL_RE = re.compile(r"[?&]list=(?P<playlist_id>[A-Za-z0-9_-]+)")
 
 from concertpvr.buffer import BufferManager
 from concertpvr.db import Database
@@ -28,14 +37,77 @@ from concertpvr.ytdlp import ProbeError, probe
 router = APIRouter()
 
 
-@router.post("/streams", response_model=StreamRead, status_code=status.HTTP_201_CREATED)
+@router.post("/streams", status_code=status.HTTP_201_CREATED, response_model=None)
 async def create_stream(
     payload: StreamCreate,
     request: Request,
     db: Database = Depends(get_db),  # noqa: B008
-) -> Stream:
+) -> Stream | dict[str, object]:
+    """Smart-paste entry point: probes a YouTube URL and routes by type.
+
+    - Single video URL → creates `Stream` (kind=live or kind=video) and queues
+      a VOD download for non-live videos. Returns the Stream JSON (201).
+    - Channel URL → returns `{type:"channel", channel_name, channel_id, url}`
+      payload (200). Frontend's smart-paste modal then offers the subscribe flow.
+    - Playlist URL → returns `{type:"playlist", playlist_id, playlist_title,
+      count, items}` payload (200). Frontend's modal offers the bulk-add flow.
+    """
     cookies = _resolve_cookies_path(db)
 
+    # Channel URL — short-circuit, don't run the single-video probe.
+    if _CHANNEL_URL_RE.search(payload.url) and "watch?v=" not in payload.url:
+        from concertpvr.ytdlp_channels import ChannelProbeError, probe_channel
+
+        try:
+            ch = await probe_channel(payload.url)
+        except ChannelProbeError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
+        return {
+            "type": "channel",
+            "channel_name": ch.channel_name,
+            "avatar_url": ch.avatar_url,
+            "url": ch.canonical_url,
+        }
+
+    # Playlist URL — short-circuit too.
+    if _PLAYLIST_URL_RE.search(payload.url) and "watch?v=" not in payload.url:
+        from concertpvr.playlist_ingest import expand_playlist
+        from concertpvr.ytdlp import ProbeError as _ProbeError
+
+        try:
+            playlist_info = await expand_playlist(payload.url, cookies_path=cookies)
+        except _ProbeError as ex:
+            raise HTTPException(status_code=400, detail=str(ex)) from ex
+        playlist_youtube_ids = [entry.youtube_id for entry in playlist_info.entries]
+        with db.session() as s:
+            existing_rows = list(
+                s.scalars(select(Stream).where(Stream.youtube_id.in_(playlist_youtube_ids)))
+            )
+            existing_ids: set[str] = {row.youtube_id for row in existing_rows}
+        return {
+            "type": "playlist",
+            "playlist_id": playlist_info.playlist_id,
+            "playlist_title": playlist_info.playlist_title,
+            "count": playlist_info.count,
+            "items": [
+                {
+                    "youtube_id": entry.youtube_id,
+                    "title": entry.title,
+                    "channel_name": entry.channel_name,
+                    "thumbnail_url": entry.thumbnail_url,
+                    "duration_s": entry.duration_s,
+                    "upload_date": (
+                        entry.upload_date.isoformat()  # type: ignore[attr-defined]
+                        if entry.upload_date is not None
+                        else None
+                    ),
+                    "is_already_known": entry.youtube_id in existing_ids,
+                }
+                for entry in playlist_info.entries
+            ],
+        }
+
+    # Single video — existing flow.
     try:
         info = await probe(payload.url, cookies_path=cookies)
     except ProbeError as e:

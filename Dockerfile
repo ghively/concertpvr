@@ -20,12 +20,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 COPY pyproject.toml ./
+COPY src/ ./src/
 RUN pip install --no-cache-dir .
 
 # Sanity-check that yt-dlp installed correctly. Build fails fast if it didn't.
 RUN yt-dlp --version
 
-COPY src/ ./src/
 COPY alembic.ini ./
 COPY alembic/ ./alembic/
 
