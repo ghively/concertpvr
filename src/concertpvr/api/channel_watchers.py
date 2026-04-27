@@ -50,14 +50,23 @@ async def create_watcher(
         )
         if existing is not None:
             raise HTTPException(status_code=409, detail="watcher already exists")
-        w = ChannelWatcher(
-            channel_url=info.canonical_url,
-            channel_name=info.channel_name,
-            avatar_url=info.avatar_url,
-            title_filter=payload.title_filter,
-            quality_cap=payload.quality_cap,
-            retention_days=payload.retention_days,
-        )
+        kwargs: dict[str, object] = {
+            "channel_url": info.canonical_url,
+            "channel_name": info.channel_name,
+            "avatar_url": info.avatar_url,
+            "title_filter": payload.title_filter,
+            "quality_cap": payload.quality_cap,
+            "retention_days": payload.retention_days,
+        }
+        # Apply v0.3 toggles only when caller explicitly set them
+        # (None = inherit the column's default).
+        if payload.watch_live is not None:
+            kwargs["watch_live"] = payload.watch_live
+        if payload.watch_vod_uploads is not None:
+            kwargs["watch_vod_uploads"] = payload.watch_vod_uploads
+        if payload.auto_publish is not None:
+            kwargs["auto_publish"] = payload.auto_publish
+        w = ChannelWatcher(**kwargs)
         s.add(w)
         try:
             s.flush()

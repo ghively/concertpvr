@@ -298,6 +298,10 @@ class ChannelWatcherCreate(BaseModel):
     title_filter: str | None = None
     quality_cap: str | None = None
     retention_days: int = 7
+    # v0.3 — smart-paste modal sets these at subscribe time.
+    watch_live: bool | None = None
+    watch_vod_uploads: bool | None = None
+    auto_publish: bool | None = None
 
 
 class ChannelWatcherPatch(BaseModel):
