@@ -131,7 +131,17 @@ class RecordingRead(BaseModel):
     width: int | None
     height: int | None
     fps: int | None
-    status: Literal["recording", "complete", "failed", "interrupted"]
+    # v0.3: extended with VOD-pipeline statuses. Order = chronological state
+    # transition order so future readers can follow the lifecycle.
+    status: Literal[
+        "recording",
+        "complete",
+        "failed",
+        "interrupted",
+        "vod_queued",
+        "vod_downloading",
+        "vod_failed",
+    ]
     is_buffer: bool
     error: str | None
     # VOD fields (v0.3)
@@ -202,6 +212,8 @@ class SegmentCreate(BaseModel):
     start_s: int
     end_s: int
     source: Literal["chapter", "setlist", "manual"] = "manual"
+    # VOD field (v0.3) — frontend's PostDownloadReview sets this at create time.
+    genres: str | None = None
 
 
 class SegmentPatch(BaseModel):

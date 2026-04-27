@@ -2,7 +2,7 @@
 # End-to-end smoke: paste URL → download → segment → publish → verify Emby
 # bundle on disk. Hits the real network and a real video. Run before tagging.
 #
-# Requires: docker compose, curl, jq.
+# Requires: docker compose, curl, python (for JSON parsing — uses the project venv).
 # Usage: bash scripts/smoke-e2e.sh
 # Exits 0 on full pass, 1 with "FAILED AT STEP N: <reason>" on first failure.
 
@@ -10,6 +10,30 @@ set -e
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
+
+# Pick a python; prefer the project venv.
+if [ -x "./.venv/Scripts/python.exe" ]; then
+    PY="./.venv/Scripts/python.exe"
+elif command -v python3 >/dev/null 2>&1; then
+    PY="python3"
+else
+    PY="python"
+fi
+
+# Mini jq replacement: jqp '.path.to.field' < input
+jqp() {
+    "$PY" -c "import json,sys
+d = json.load(sys.stdin)
+keys = '$1'.lstrip('.').split('.')
+for k in keys:
+    if k.endswith(']'):
+        idx = int(k[k.index('[')+1:-1])
+        k = k[:k.index('[')]
+        d = d[k][idx] if k else d[idx]
+    else:
+        d = d[k] if isinstance(d, dict) else d
+print(d if d is not None else '')"
+}
 
 API="http://127.0.0.1:8787/api"
 TEST_URL="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
@@ -39,14 +63,14 @@ curl -sf -m 2 "$API/healthz" >/dev/null || fail 0 "healthcheck never green"
 echo "=== step 1: POST /api/streams with $TEST_URL ==="
 RESP=$(curl -sf -m 30 -X POST "$API/streams" -H "Content-Type: application/json" \
     -d "{\"url\":\"$TEST_URL\"}") || fail 1 "POST /streams failed"
-STREAM_ID=$(echo "$RESP" | jq -r .id)
+STREAM_ID=$(echo "$RESP" | jqp .id)
 [ -n "$STREAM_ID" ] && [ "$STREAM_ID" != "null" ] || fail 1 "no stream id in response: $RESP"
 echo "  stream_id=$STREAM_ID"
 
 # --- step 2: find the recording row created by the queue handler ---
 echo "=== step 2: locate Recording row ==="
 sleep 2
-REC_ID=$(curl -sf "$API/recordings?stream_id=$STREAM_ID" | jq -r '.[0].id')
+REC_ID=$(curl -sf "$API/recordings?stream_id=$STREAM_ID" | jqp '.[0].id')
 [ -n "$REC_ID" ] && [ "$REC_ID" != "null" ] || fail 2 "no recording for stream $STREAM_ID"
 echo "  recording_id=$REC_ID"
 
@@ -56,14 +80,14 @@ START=$(date +%s)
 while true; do
     NOW=$(date +%s)
     if [ $((NOW - START)) -gt $DEADLINE_DOWNLOAD ]; then
-        STATUS=$(curl -sf "$API/recordings/$REC_ID" | jq -r .status)
-        ERROR=$(curl -sf "$API/recordings/$REC_ID" | jq -r .error)
+        STATUS=$(curl -sf "$API/recordings/$REC_ID" | jqp .status)
+        ERROR=$(curl -sf "$API/recordings/$REC_ID" | jqp .error)
         fail 3 "download timed out after ${DEADLINE_DOWNLOAD}s (status=$STATUS, error=$ERROR)"
     fi
-    STATUS=$(curl -sf "$API/recordings/$REC_ID" | jq -r .status)
+    STATUS=$(curl -sf "$API/recordings/$REC_ID" | jqp .status)
     case "$STATUS" in
         complete) echo "  complete after $((NOW - START))s"; break ;;
-        vod_failed) fail 3 "recording status=vod_failed: $(curl -sf "$API/recordings/$REC_ID" | jq -r .error)" ;;
+        vod_failed) fail 3 "recording status=vod_failed: $(curl -sf "$API/recordings/$REC_ID" | jqp .error)" ;;
         vod_queued|vod_downloading) ;;
         *) fail 3 "unexpected status $STATUS" ;;
     esac
@@ -72,7 +96,7 @@ done
 
 # --- step 4: verify file on disk ---
 echo "=== step 4: verify staging file ==="
-PATH_ON_DISK=$(curl -sf "$API/recordings/$REC_ID" | jq -r .path)
+PATH_ON_DISK=$(curl -sf "$API/recordings/$REC_ID" | jqp .path)
 # Container path /data/staging/... maps to local .local-data/staging/...
 LOCAL_PATH=$(echo "$PATH_ON_DISK" | sed 's|^/data|.local-data|')
 if [ ! -f "$LOCAL_PATH" ]; then
@@ -97,7 +121,7 @@ SEG_RESP=$(curl -sf -m 10 -X POST "$API/segments" -H "Content-Type: application/
     \"source\": \"manual\",
     \"genres\": \"Pop, 80s\"
 }") || fail 5 "POST /segments failed"
-SEG_ID=$(echo "$SEG_RESP" | jq -r .id)
+SEG_ID=$(echo "$SEG_RESP" | jqp .id)
 [ -n "$SEG_ID" ] && [ "$SEG_ID" != "null" ] || fail 5 "no segment id: $SEG_RESP"
 echo "  segment_id=$SEG_ID"
 
@@ -111,13 +135,13 @@ START=$(date +%s)
 while true; do
     NOW=$(date +%s)
     if [ $((NOW - START)) -gt $DEADLINE_PUBLISH ]; then
-        STATUS=$(curl -sf "$API/segments/$SEG_ID" | jq -r .status)
+        STATUS=$(curl -sf "$API/segments/$SEG_ID" | jqp .status)
         fail 7 "publish timed out (status=$STATUS)"
     fi
-    STATUS=$(curl -sf "$API/segments/$SEG_ID" | jq -r .status)
+    STATUS=$(curl -sf "$API/segments/$SEG_ID" | jqp .status)
     case "$STATUS" in
         published) echo "  published after $((NOW - START))s"; break ;;
-        publish_failed) fail 7 "segment status=publish_failed: $(curl -sf "$API/segments/$SEG_ID" | jq -r .error)" ;;
+        publish_failed) fail 7 "segment status=publish_failed: $(curl -sf "$API/segments/$SEG_ID" | jqp .error)" ;;
         publishing|draft) ;;
         *) fail 7 "unexpected segment status $STATUS" ;;
     esac
@@ -126,7 +150,7 @@ done
 
 # --- step 8: verify Emby bundle on disk ---
 echo "=== step 8: verify Emby bundle ==="
-EMBY_PATH=$(curl -sf "$API/segments/$SEG_ID" | jq -r .emby_path)
+EMBY_PATH=$(curl -sf "$API/segments/$SEG_ID" | jqp .emby_path)
 [ -n "$EMBY_PATH" ] && [ "$EMBY_PATH" != "null" ] || fail 8 "no emby_path on segment"
 LOCAL_EMBY_PATH=$(echo "$EMBY_PATH" | sed 's|^/media/concerts|.local-publish|')
 [ -d "$LOCAL_EMBY_PATH" ] || fail 8 "emby dir missing: $LOCAL_EMBY_PATH"
