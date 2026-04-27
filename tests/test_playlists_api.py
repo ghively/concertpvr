@@ -1,6 +1,7 @@
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from concertpvr.main import create_app
 from concertpvr.playlist_ingest import PlaylistEntry, PlaylistInfo
@@ -20,10 +21,24 @@ def test_ingest_returns_playlist_with_items(client):
         playlist_title="Best of KEXP 2025",
         count=2,
         entries=[
-            PlaylistEntry(youtube_id="a", title="Song A", url="https://a", channel_name="KEXP",
-                          thumbnail_url=None, duration_s=300, upload_date=None),
-            PlaylistEntry(youtube_id="b", title="Song B", url="https://b", channel_name="KEXP",
-                          thumbnail_url=None, duration_s=240, upload_date=None),
+            PlaylistEntry(
+                youtube_id="a",
+                title="Song A",
+                url="https://a",
+                channel_name="KEXP",
+                thumbnail_url=None,
+                duration_s=300,
+                upload_date=None,
+            ),
+            PlaylistEntry(
+                youtube_id="b",
+                title="Song B",
+                url="https://b",
+                channel_name="KEXP",
+                thumbnail_url=None,
+                duration_s=240,
+                upload_date=None,
+            ),
         ],
     )
 
@@ -31,7 +46,9 @@ def test_ingest_returns_playlist_with_items(client):
         return fake_info
 
     with patch("concertpvr.api.playlists.expand_playlist", side_effect=_fake_expand):
-        r = client.post("/api/playlists/ingest", json={"url": "https://www.youtube.com/playlist?list=PL123"})
+        r = client.post(
+            "/api/playlists/ingest", json={"url": "https://www.youtube.com/playlist?list=PL123"}
+        )
     assert r.status_code == 200
     body = r.json()
     assert body["type"] == "playlist"
@@ -42,14 +59,28 @@ def test_ingest_returns_playlist_with_items(client):
 
 
 def test_confirm_creates_streams_and_queues(client, monkeypatch):
-    info_a = StreamInfo(youtube_id="a", url="https://a", title="A", channel_name="K",
-                       is_live=False, thumbnail_url=None)
-    info_b = StreamInfo(youtube_id="b", url="https://b", title="B", channel_name="K",
-                       is_live=False, thumbnail_url=None)
+    info_a = StreamInfo(
+        youtube_id="a",
+        url="https://a",
+        title="A",
+        channel_name="K",
+        is_live=False,
+        thumbnail_url=None,
+    )
+    info_b = StreamInfo(
+        youtube_id="b",
+        url="https://b",
+        title="B",
+        channel_name="K",
+        is_live=False,
+        thumbnail_url=None,
+    )
 
     async def _probe(url, **_kw):
-        return {"https://www.youtube.com/watch?v=a": info_a,
-                "https://www.youtube.com/watch?v=b": info_b}[url]
+        return {
+            "https://www.youtube.com/watch?v=a": info_a,
+            "https://www.youtube.com/watch?v=b": info_b,
+        }[url]
 
     fake_queue = MagicMock()
     fake_queue.enqueue = AsyncMock()

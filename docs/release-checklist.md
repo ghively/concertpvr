@@ -74,3 +74,18 @@ Run through this before tagging a new version. Everything must pass.
 - [ ] After unclean shutdown (e.g. `docker compose kill concertpvr`), restart the container — any "recording" rows in the Recordings tab now show `interrupted`.
 - [ ] At max concurrent (Settings > max_concurrent_recordings = N), starting an N+1th recording: button shows "Pool full" + disabled; if invoked via API directly, returns 507.
 - [ ] Settings → folder_pattern field rejects `{invalid_token}` with a 422 error.
+
+## VOD downloads (added v0.3)
+
+- [ ] Paste a Tiny Desk URL on Sources page → smart-paste modal probes → "Queue download" → recording appears in Recordings with `vod_downloading` status, progress bar updates live.
+- [ ] After download completes, navigate to `/recordings/{id}/review`. Setlist detected from description shown with Apply/Open in Timeline editor/Dismiss.
+- [ ] Subscribe to a YouTube channel via smart-paste → watcher detail page → Settings tab → toggle "Watch for new VOD uploads" + set `vod_artist_regex` like `^(?P<artist>.+?)[:|]\s*Tiny Desk` → next channel poll picks up new uploads, creates Recordings.
+- [ ] With `auto_publish=true` on a watcher and matching artist regex → new VOD downloads, segments are auto-published to Emby without manual review.
+- [ ] Backlog tab on watcher → see channel's recent videos → multi-select 3 → "Queue 3 downloads" → recordings appear in Recordings.
+- [ ] Paste a playlist URL → preview modal shows items → confirm → N downloads queued.
+- [ ] Genre filter on Library narrows to selected genre(s); year filter likewise.
+- [ ] Genre filter on Sources narrows to selected genre(s).
+- [ ] Settings → flip `auto_delete_source_after_publish` ON, publish all segments on a recording → source file removed.
+- [ ] DELETE `/api/recordings/{id}/source` returns 409 when any segment is unpublished.
+- [ ] At max concurrent VOD downloads, queueing more keeps them in `vod_queued` state; live recordings unaffected.
+- [ ] Dashboard "Live now" + "VODs downloading" stat cards show correct fractions.

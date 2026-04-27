@@ -137,7 +137,9 @@ def test_list_recordings_filter_by_status(client):
 # ---------------------------------------------------------------------------
 
 
-def _seed_recording_with_segments(client, *, seg_statuses: list[str], source_deleted: bool = False) -> tuple[int, int]:
+def _seed_recording_with_segments(
+    client, *, seg_statuses: list[str], source_deleted: bool = False
+) -> tuple[int, int]:
     """Seed a recording with segments; returns (recording_id, stream_id)."""
     db = client.app.state.db
     with db.session() as s:

@@ -1,5 +1,4 @@
 import datetime as _dt
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -212,6 +211,7 @@ async def test_existing_stream_is_reused(setup):
 # VOD uploads branch tests
 # ---------------------------------------------------------------------------
 
+
 def _make_vod_queue(db: Database) -> VodQueue:
     """Create a VodQueue with a no-op handler (no real downloading)."""
     handler = AsyncMock()
@@ -323,7 +323,7 @@ async def test_poller_creates_vod_recording_with_auto_publish_when_artist_extrac
         watch_vod_uploads=True,
         auto_publish=True,
         vod_artist_regex=r"Tiny Desk Concert — (?P<artist>.+)",
-        added_at=_dt.datetime(2026, 1, 1, tzinfo=_dt.timezone.utc),
+        added_at=_dt.datetime(2026, 1, 1, tzinfo=_dt.UTC),
     )
     vq = _make_vod_queue(db)
 
@@ -331,7 +331,9 @@ async def test_poller_creates_vod_recording_with_auto_publish_when_artist_extrac
     info = _fake_stream_info(youtube_id="vod001", title="Tiny Desk Concert — Foo Fighter")
 
     with (
-        patch("concertpvr.channel_poller.list_recent_uploads", new=AsyncMock(return_value=[upload])),
+        patch(
+            "concertpvr.channel_poller.list_recent_uploads", new=AsyncMock(return_value=[upload])
+        ),
         patch("concertpvr.channel_poller.probe", new=AsyncMock(return_value=info)),
         patch(
             "concertpvr.channel_poller.fetch_channel_live_broadcasts",
@@ -367,7 +369,7 @@ async def test_poller_skips_already_known_youtube_id(setup, tmp_path):
     _seed_vod_watcher(
         db,
         watch_vod_uploads=True,
-        added_at=_dt.datetime(2026, 1, 1, tzinfo=_dt.timezone.utc),
+        added_at=_dt.datetime(2026, 1, 1, tzinfo=_dt.UTC),
     )
     vq = _make_vod_queue(db)
 
@@ -386,7 +388,9 @@ async def test_poller_skips_already_known_youtube_id(setup, tmp_path):
     probe_mock = AsyncMock(return_value=_fake_stream_info(youtube_id="vod_known"))
 
     with (
-        patch("concertpvr.channel_poller.list_recent_uploads", new=AsyncMock(return_value=[upload])),
+        patch(
+            "concertpvr.channel_poller.list_recent_uploads", new=AsyncMock(return_value=[upload])
+        ),
         patch("concertpvr.channel_poller.probe", new=probe_mock),
         patch(
             "concertpvr.channel_poller.fetch_channel_live_broadcasts",
@@ -411,12 +415,10 @@ async def test_poller_skips_already_known_youtube_id(setup, tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_poller_forward_only_skips_uploads_older_than_watcher_created_at(
-    setup, tmp_path
-):
+async def test_poller_forward_only_skips_uploads_older_than_watcher_created_at(setup, tmp_path):
     """Uploads with upload_date before watcher.added_at are skipped (forward-only filter)."""
     db = setup["db"]
-    watcher_created = _dt.datetime(2026, 4, 10, tzinfo=_dt.timezone.utc)
+    watcher_created = _dt.datetime(2026, 4, 10, tzinfo=_dt.UTC)
     _seed_vod_watcher(
         db,
         watch_vod_uploads=True,
@@ -466,7 +468,7 @@ async def test_poller_applies_vod_title_filter(setup, tmp_path):
         db,
         watch_vod_uploads=True,
         vod_title_filter="Tiny Desk",
-        added_at=_dt.datetime(2026, 1, 1, tzinfo=_dt.timezone.utc),
+        added_at=_dt.datetime(2026, 1, 1, tzinfo=_dt.UTC),
     )
     vq = _make_vod_queue(db)
 

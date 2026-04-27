@@ -55,7 +55,7 @@ class PlaylistConfirmRequest(BaseModel):
 @router.post("/playlists/ingest", response_model=PlaylistIngestResponse)
 async def ingest_playlist(
     body: PlaylistIngestRequest,
-    db: Database = Depends(get_db),
+    db: Database = Depends(get_db),  # noqa: B008
 ) -> PlaylistIngestResponse:
     cookies_path = _resolve_cookies_path(db)
     try:
@@ -66,9 +66,8 @@ async def ingest_playlist(
     youtube_ids = [e.youtube_id for e in info.entries]
     with db.session() as s:
         existing = {
-            row.youtube_id for row in s.scalars(
-                select(Stream).where(Stream.youtube_id.in_(youtube_ids))
-            )
+            row.youtube_id
+            for row in s.scalars(select(Stream).where(Stream.youtube_id.in_(youtube_ids)))
         }
 
     items = [
@@ -95,7 +94,7 @@ async def ingest_playlist(
 async def confirm_playlist(
     body: PlaylistConfirmRequest,
     request: Request,
-    db: Database = Depends(get_db),
+    db: Database = Depends(get_db),  # noqa: B008
 ) -> dict[str, list[int]]:
     cookies_path = _resolve_cookies_path(db)
     new_rec_ids: list[int] = []

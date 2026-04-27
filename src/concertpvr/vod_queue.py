@@ -54,7 +54,7 @@ class VodQueue:
         for t in self._workers:
             try:
                 await asyncio.wait_for(t, timeout=5.0)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 t.cancel()
         self._workers.clear()
 
@@ -63,9 +63,11 @@ class VodQueue:
 
     async def rehydrate_from_db(self) -> None:
         with self._db.session() as s:
-            rows = list(s.scalars(
-                select(Recording).where(Recording.status == "vod_queued").order_by(Recording.id)
-            ))
+            rows = list(
+                s.scalars(
+                    select(Recording).where(Recording.status == "vod_queued").order_by(Recording.id)
+                )
+            )
             ids = [r.id for r in rows]
         for rid in ids:
             await self._queue.put(rid)
@@ -81,7 +83,9 @@ class VodQueue:
             try:
                 await self._handler(rec_id)
             except Exception as e:  # noqa: BLE001
-                logger.exception("vod_queue worker %d: handler failed for rec %d", worker_id, rec_id)
+                logger.exception(
+                    "vod_queue worker %d: handler failed for rec %d", worker_id, rec_id
+                )
                 try:
                     with self._db.session() as s:
                         rec = s.get(Recording, rec_id)
@@ -89,7 +93,9 @@ class VodQueue:
                             rec.status = "vod_failed"
                             rec.error = f"{type(e).__name__}: {e}"[:500]
                 except Exception:  # noqa: BLE001
-                    logger.exception("vod_queue: failed to record vod_failed status for rec %d", rec_id)
+                    logger.exception(
+                        "vod_queue: failed to record vod_failed status for rec %d", rec_id
+                    )
             finally:
                 self._queue.task_done()
 

@@ -262,9 +262,7 @@ async def test_publish_festival_defaults_to_channel_name_for_vod(db, tmp_path, f
 
 
 @pytest.mark.asyncio
-async def test_publish_genres_resolution_per_segment_overrides_watcher(
-    db, tmp_path, fixture_video
-):
+async def test_publish_genres_resolution_per_segment_overrides_watcher(db, tmp_path, fixture_video):
     """Segment.genres set → use that; watcher.default_genres is ignored."""
     with db.session() as s:
         watcher = ChannelWatcher(
@@ -276,9 +274,7 @@ async def test_publish_genres_resolution_per_segment_overrides_watcher(
         s.flush()
         watcher_id = watcher.id
 
-    seg_id = _seed_vod(
-        db, fixture_video, genres="Rock", watcher_id=watcher_id
-    )
+    seg_id = _seed_vod(db, fixture_video, genres="Rock", watcher_id=watcher_id)
 
     worker = PublishWorker(
         db=db,
@@ -313,9 +309,7 @@ async def test_publish_genres_falls_back_to_watcher_default_when_segment_null(
         s.flush()
         watcher_id = watcher.id
 
-    seg_id = _seed_vod(
-        db, fixture_video, genres=None, watcher_id=watcher_id
-    )
+    seg_id = _seed_vod(db, fixture_video, genres=None, watcher_id=watcher_id)
 
     worker = PublishWorker(
         db=db,
@@ -383,6 +377,7 @@ async def test_publish_auto_deletes_source_when_settings_say_so(db, tmp_path, fi
     # Use a copy of the fixture so we can delete it without affecting other tests
     source = tmp_path / "source.mp4"
     import shutil
+
     shutil.copy(str(fixture_video), str(source))
 
     seg_id = _seed_with_settings(db, source, auto_delete=True)
@@ -413,6 +408,7 @@ async def test_publish_does_not_delete_source_when_some_segments_unpublished(
     """With 2 segments and only 1 published, source should be preserved."""
     source = tmp_path / "source2.mp4"
     import shutil
+
     shutil.copy(str(fixture_video), str(source))
 
     from concertpvr.models import Settings
@@ -493,6 +489,7 @@ async def test_publish_watcher_pref_overrides_settings(db, tmp_path, fixture_vid
     """watcher.auto_delete=False wins even when settings.auto_delete=True."""
     source = tmp_path / "source3.mp4"
     import shutil
+
     shutil.copy(str(fixture_video), str(source))
 
     from concertpvr.models import Settings
@@ -525,7 +522,9 @@ async def test_publish_watcher_pref_overrides_settings(db, tmp_path, fixture_vid
     )
     await worker.publish(seg_id)
 
-    assert source.exists(), "source should NOT be deleted because watcher pref=False overrides settings"
+    assert source.exists(), (
+        "source should NOT be deleted because watcher pref=False overrides settings"
+    )
 
     with db.session() as s:
         seg = s.get(Segment, seg_id)

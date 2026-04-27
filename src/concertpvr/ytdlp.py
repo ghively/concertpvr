@@ -105,9 +105,7 @@ async def probe(
     description_raw = info.get("description")
     description: str | None = description_raw if isinstance(description_raw, str) else None
     if description and len(description) > 2_000_000:
-        logger.warning(
-            "description for %s truncated from %d to 2MB", youtube_id, len(description)
-        )
+        logger.warning("description for %s truncated from %d to 2MB", youtube_id, len(description))
         description = description[:2_000_000]
 
     tags_raw = info.get("tags")
@@ -124,9 +122,7 @@ async def probe(
     )
 
     duration_raw = info.get("duration")
-    duration_s: int | None = (
-        int(duration_raw) if isinstance(duration_raw, (int, float)) else None
-    )
+    duration_s: int | None = int(duration_raw) if isinstance(duration_raw, (int, float)) else None
 
     return StreamInfo(
         youtube_id=youtube_id,

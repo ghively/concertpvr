@@ -80,7 +80,11 @@ def test_detect_chapters_returns_none_when_empty():
 def test_detect_comments_finds_pinned_setlist():
     comments = [
         {"is_pinned": False, "text": "Great show!", "like_count": 12},
-        {"is_pinned": True, "text": "Setlist:\n0:00 - Intro\n3:21 - Song Two\n8:45 - Song Three", "like_count": 200},
+        {
+            "is_pinned": True,
+            "text": "Setlist:\n0:00 - Intro\n3:21 - Song Two\n8:45 - Song Three",
+            "like_count": 200,
+        },
     ]
     result = detect_in_comments(comments)
     assert result is not None
@@ -91,7 +95,11 @@ def test_detect_comments_finds_pinned_setlist():
 def test_detect_comments_falls_back_to_top_liked():
     comments = [
         {"is_pinned": False, "text": "great track at 3:21", "like_count": 10},
-        {"is_pinned": False, "text": "0:00 - Intro\n3:21 - Song Two\n8:45 - Song Three\n12:00 - Song Four", "like_count": 500},
+        {
+            "is_pinned": False,
+            "text": "0:00 - Intro\n3:21 - Song Two\n8:45 - Song Three\n12:00 - Song Four",
+            "like_count": 500,
+        },
     ]
     result = detect_in_comments(comments)
     assert result is not None
@@ -104,7 +112,9 @@ def test_detect_comments_returns_none_when_no_match():
 
 
 def test_detect_comments_drops_malformed_timestamps():
-    comments = [{"is_pinned": True, "text": "0:00 Intro\n1:99 Bad\n3:21 Song Two", "like_count": 100}]
+    comments = [
+        {"is_pinned": True, "text": "0:00 Intro\n1:99 Bad\n3:21 Song Two", "like_count": 100}
+    ]
     result = detect_in_comments(comments)
     assert result is not None
     assert len(result.entries) == 2

@@ -23,12 +23,17 @@ def db(tmp_path):
 def _seed_recording(db: Database, status: str = "vod_queued") -> int:
     uid = next(_counter)
     with db.session() as s:
-        st = Stream(kind="video", youtube_id=f"vid{uid}", url=f"u{uid}", title="t", channel_name="c")
+        st = Stream(
+            kind="video", youtube_id=f"vid{uid}", url=f"u{uid}", title="t", channel_name="c"
+        )
         s.add(st)
         s.flush()
         rec = Recording(
-            stream_id=st.id, started_at=_dt.datetime.now(_dt.UTC),
-            path=f"/tmp/x{uid}", status=status, is_buffer=False,
+            stream_id=st.id,
+            started_at=_dt.datetime.now(_dt.UTC),
+            path=f"/tmp/x{uid}",
+            status=status,
+            is_buffer=False,
         )
         s.add(rec)
         s.flush()

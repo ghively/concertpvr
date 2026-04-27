@@ -1,5 +1,57 @@
 # Changelog
 
+## v0.3.0 — 2026-04-26
+
+### Features
+
+- **Download non-live YouTube performances.** Tiny Desk Concerts, KEXP sets, NPR Music Field Recordings — three workflows: paste any URL, subscribe to a channel for auto-pull, or ingest an entire playlist.
+- **Channel watchers learn VOD mode.** Existing watchers gain "Watch for new VOD uploads" + "Auto-publish to Emby" toggles. Forward-only by default; backlog browser to manually pick old videos.
+- **Setlist auto-detection.** Description text, YouTube chapters, and (opt-in, slower) pinned/top comments parsed for timestamped setlists. Detected setlists surface on the post-download review screen with apply/edit/dismiss.
+- **Per-watcher artist regex.** Named-group regex pattern extracts artist from titles ("Khruangbin: Tiny Desk Concert" → "Khruangbin"). No match → safe fallback to manual review even if auto-publish is on.
+- **Genres.** Per-watcher default genres + per-segment overrides + click-to-add suggestions from YouTube tags. Genre filter chips on Sources and Library pages. NFO emits one `<genre>` per genre.
+- **Source-file lifecycle.** Per-recording manual delete button (gated on all segments published), plus per-watcher and global auto-delete-after-publish settings.
+
+### API
+
+- `POST /api/streams` — handles single video / channel / playlist URLs (smart-paste routing).
+- `GET /api/channel-watchers/{id}/backlog` — paginated channel-videos listing with sort options.
+- `POST /api/channel-watchers/{id}/backlog/download` — bulk-download selected backlog items.
+- `POST /api/playlists/ingest` + `/confirm` — playlist preview and bulk-add.
+- `POST /api/recordings/{id}/retry` — retry a failed VOD download.
+- `DELETE /api/recordings/{id}/source` — manual source-file removal (409 if any segment is unpublished).
+- `PATCH /api/channel-watchers/{id}` — accepts 9 new fields (live/VOD toggles, filters, regex, genres, auto-publish, auto-delete).
+
+### Schema
+
+- Migration `0008_vod_support` adds 20 columns across 5 tables (channel_watchers, streams, segments, recordings, settings). All additive — no drops, no renames, no type changes.
+
+### UI
+
+- Streams tab renamed to **Sources**; mixed live + video kinds with kind badges.
+- "Add URL" smart-paste modal with three result modes (single video / channel / playlist).
+- Watcher detail page extended: Settings tab with VOD filters/automation, Backlog tab with a multi-select cards grid.
+- Post-download review screen for VODs at `/recordings/{id}/review`.
+- Dashboard split-stat strip: Live + VODs as separate cards.
+- Genre filter chips on Sources + Library; year filter on Library.
+- Timeline editor segment sidebar gains genres autocomplete + YouTube-tag suggestion chips.
+
+### Performance
+
+- Separate VOD queue (default cap 2) — VOD downloads never starve the live recorder pool.
+- Index on `streams.watcher_id` for the "From watcher" filter.
+
+### Tests
+
+72 new backend tests (191 v0.2 → 263 v0.3). Frontend builds clean.
+
+### Known limitations
+
+- Backlog tab title filter and duration sort only — yt-dlp's flat-extract doesn't return tag/genre data cheaply.
+- "Most viewed" sort on backlog is documented but not yet wired (would require full probe per item).
+- External setlist sources (setlist.fm) not yet integrated; documented as future enhancement.
+
+---
+
 ## v0.2.0 — 2026-04-26
 
 ### Reliability

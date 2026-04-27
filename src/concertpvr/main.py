@@ -94,8 +94,8 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
     from concertpvr.models import Stream as _Stream
     from concertpvr.process import AsyncSubprocessRunner as _AsyncSubprocessRunner
     from concertpvr.recording_starter import _resolve_cookies_path as _resolve_cookies
-    from concertpvr.vod_downloader import VodDownloadError as _VodDownloadError
     from concertpvr.vod_downloader import VodDownloader as _VodDownloader
+    from concertpvr.vod_downloader import VodDownloadError as _VodDownloadError
     from concertpvr.vod_downloader import VodProgress as _VodProgress
     from concertpvr.vod_queue import VodQueue
 
@@ -116,11 +116,7 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
             url = stream.url
             output_path = _PathVod(rec.path)
             settings_row = s.get(_SettingsModel, 1)
-            quality = (
-                settings_row.default_quality
-                if settings_row
-                else "bestvideo*+bestaudio/best"
-            )
+            quality = settings_row.default_quality if settings_row else "bestvideo*+bestaudio/best"
             rec.status = "vod_downloading"
 
         cookies_path = _resolve_cookies(app.state.db)
@@ -176,7 +172,9 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
                 rec.duration_s = int(media_info.duration_s)
 
     app.state.vod_queue = VodQueue(
-        db=app.state.db, handler=_vod_handler, max_concurrent=_vod_cap,
+        db=app.state.db,
+        handler=_vod_handler,
+        max_concurrent=_vod_cap,
     )
     await app.state.vod_queue.start_workers()
     await app.state.vod_queue.rehydrate_from_db()

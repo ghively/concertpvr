@@ -69,15 +69,22 @@ async def expand_playlist(
         yid = entry.get("id") or ""
         if not yid:
             continue
-        entries.append(PlaylistEntry(
-            youtube_id=yid,
-            title=entry.get("title") or "Untitled",
-            url=entry.get("url") or entry.get("webpage_url") or f"https://www.youtube.com/watch?v={yid}",
-            channel_name=entry.get("channel") or entry.get("uploader") or info.get("channel") or "Unknown",
-            thumbnail_url=entry.get("thumbnail"),
-            duration_s=int(entry["duration"]) if entry.get("duration") is not None else None,
-            upload_date=_parse_yt_date(entry.get("upload_date") or entry.get("release_date")),
-        ))
+        entries.append(
+            PlaylistEntry(
+                youtube_id=yid,
+                title=entry.get("title") or "Untitled",
+                url=entry.get("url")
+                or entry.get("webpage_url")
+                or f"https://www.youtube.com/watch?v={yid}",
+                channel_name=entry.get("channel")
+                or entry.get("uploader")
+                or info.get("channel")
+                or "Unknown",
+                thumbnail_url=entry.get("thumbnail"),
+                duration_s=int(entry["duration"]) if entry.get("duration") is not None else None,
+                upload_date=_parse_yt_date(entry.get("upload_date") or entry.get("release_date")),
+            )
+        )
 
     return PlaylistInfo(
         playlist_id=info.get("id", ""),

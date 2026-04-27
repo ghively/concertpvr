@@ -12,8 +12,8 @@ from sqlalchemy.exc import IntegrityError
 from concertpvr.buffer import BufferManager
 from concertpvr.db import Database
 from concertpvr.deps import get_broadcaster, get_buffer, get_db, get_pool
-from concertpvr.models import Recording, Settings as SettingsModel
-from concertpvr.models import Stream, WatchSubscription
+from concertpvr.models import Recording, Stream, WatchSubscription
+from concertpvr.models import Settings as SettingsModel
 from concertpvr.pool import RecorderPool
 from concertpvr.recording_starter import _resolve_cookies_path
 from concertpvr.schemas import (

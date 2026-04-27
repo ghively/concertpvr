@@ -18,7 +18,9 @@ def test_existing_watcher_rows_get_safe_defaults(client):
     """A watcher created before migration must come up with watch_live=True and VOD off."""
     db = client.app.state.db
     with db.session() as s:
-        w = ChannelWatcher(channel_url="https://www.youtube.com/@nprmusic", channel_name="NPR Music")
+        w = ChannelWatcher(
+            channel_url="https://www.youtube.com/@nprmusic", channel_name="NPR Music"
+        )
         s.add(w)
         s.flush()
         wid = w.id
@@ -66,13 +68,17 @@ def test_existing_settings_get_vod_defaults(client):
 def test_recording_gets_source_deleted_default(client):
     db = client.app.state.db
     import datetime as _dt
+
     with db.session() as s:
         st = Stream(kind="live", youtube_id="abc", url="https://x", title="T", channel_name="C")
         s.add(st)
         s.flush()
         rec = Recording(
-            stream_id=st.id, started_at=_dt.datetime.now(_dt.UTC),
-            path="/tmp/x", status="recording", is_buffer=True,
+            stream_id=st.id,
+            started_at=_dt.datetime.now(_dt.UTC),
+            path="/tmp/x",
+            status="recording",
+            is_buffer=True,
         )
         s.add(rec)
         s.flush()
@@ -87,18 +93,27 @@ def test_recording_gets_source_deleted_default(client):
 def test_segment_genres_default_null(client):
     db = client.app.state.db
     import datetime as _dt
+
     with db.session() as s:
         st = Stream(kind="video", youtube_id="abc", url="https://x", title="T", channel_name="C")
         s.add(st)
         s.flush()
         rec = Recording(
-            stream_id=st.id, started_at=_dt.datetime.now(_dt.UTC),
-            path="/tmp/x", status="complete", is_buffer=False,
+            stream_id=st.id,
+            started_at=_dt.datetime.now(_dt.UTC),
+            path="/tmp/x",
+            status="complete",
+            is_buffer=False,
         )
         s.add(rec)
         s.flush()
         seg = Segment(
-            recording_id=rec.id, artist="A", start_s=0, end_s=10, source="manual", status="draft",
+            recording_id=rec.id,
+            artist="A",
+            start_s=0,
+            end_s=10,
+            source="manual",
+            status="draft",
         )
         s.add(seg)
         s.flush()

@@ -12,14 +12,22 @@ from sqlalchemy import select
 from concertpvr.artist_extractor import extract_artist
 from concertpvr.buffer import BufferManager
 from concertpvr.db import Database
-from concertpvr.models import ChannelWatcher, Recording, Settings, Stream
+from concertpvr.models import ChannelWatcher, Recording, Stream
 from concertpvr.pool import RecorderPool
 from concertpvr.recording_starter import _resolve_cookies_path, start_buffer_recording
-from concertpvr.setlist_detector import detect_in_chapters, detect_in_comments, detect_in_description
+from concertpvr.setlist_detector import (
+    detect_in_chapters,
+    detect_in_comments,
+    detect_in_description,
+)
 from concertpvr.vod_queue import VodQueue
 from concertpvr.ws import Broadcaster
 from concertpvr.ytdlp import probe
-from concertpvr.ytdlp_channels import BroadcastInfo, fetch_channel_live_broadcasts, list_recent_uploads
+from concertpvr.ytdlp_channels import (
+    BroadcastInfo,
+    fetch_channel_live_broadcasts,
+    list_recent_uploads,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -70,9 +78,7 @@ async def _check_for_new_vod_uploads(
 
     # Pre-fetch known youtube_ids for this channel's streams to skip duplicates
     with db.session() as s:
-        known_ids: set[str] = set(
-            s.scalars(select(Stream.youtube_id))
-        )
+        known_ids: set[str] = set(s.scalars(select(Stream.youtube_id)))
 
     new_rec_ids: list[int] = []
 
@@ -119,9 +125,7 @@ async def _check_for_new_vod_uploads(
                 fetch_comments=watcher.extract_setlist_from_comments,
             )
         except Exception as e:  # noqa: BLE001
-            logger.warning(
-                "watcher %s: probe failed for %s: %s", watcher.id, upload.youtube_id, e
-            )
+            logger.warning("watcher %s: probe failed for %s: %s", watcher.id, upload.youtube_id, e)
             continue
 
         # Skip live entries from full probe
@@ -144,9 +148,7 @@ async def _check_for_new_vod_uploads(
         # Create Stream + Recording within a single session
         with db.session() as s:
             # Re-check in case another poll created it concurrently
-            existing_stream = s.scalar(
-                select(Stream).where(Stream.youtube_id == info.youtube_id)
-            )
+            existing_stream = s.scalar(select(Stream).where(Stream.youtube_id == info.youtube_id))
             if existing_stream is not None:
                 logger.debug(
                     "watcher %s: stream %s created concurrently; skipping",
@@ -238,11 +240,11 @@ async def poll_all_channel_watchers(
         last_live_id,
         watch_live,
         watch_vod_uploads,
-        added_at,
-        vod_title_filter,
-        vod_artist_regex,
-        auto_publish,
-        extract_setlist_from_comments,
+        _added_at,
+        _vod_title_filter,
+        _vod_artist_regex,
+        _auto_publish,
+        _extract_setlist_from_comments,
     ) in watcher_data:
         # --- Live broadcast path (sacred, unchanged) ---
         if watch_live:

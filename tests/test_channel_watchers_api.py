@@ -146,7 +146,6 @@ def test_get_backlog_marks_existing_streams_as_downloaded(client, fake_probe):
     wid = created["id"]
 
     # Seed a Stream with youtube_id "vid_aaa" into the DB
-    from sqlalchemy import select
     from concertpvr.models import Stream
 
     with client.app.state.db.session() as s:
@@ -219,6 +218,7 @@ def test_post_backlog_download_creates_recordings_and_enqueues(client, fake_prob
 
     # Verify recordings have auto_publish_after_download=False
     from sqlalchemy import select
+
     from concertpvr.models import Recording
 
     with client.app.state.db.session() as s:

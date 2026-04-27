@@ -11,8 +11,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response,
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-logger = logging.getLogger(__name__)
-
 from concertpvr.db import Database
 from concertpvr.deps import get_db
 from concertpvr.models import ChannelWatcher, Recording, Stream
@@ -26,6 +24,8 @@ from concertpvr.schemas import (
 )
 from concertpvr.ytdlp import ProbeError, probe
 from concertpvr.ytdlp_channels import ChannelProbeError, list_recent_uploads, probe_channel
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -160,9 +160,7 @@ async def get_watcher_backlog(
     # Build a set of known youtube_ids for state classification
     youtube_ids = [b.youtube_id for b in page]
     with db.session() as s:
-        stream_rows = list(
-            s.scalars(select(Stream).where(Stream.youtube_id.in_(youtube_ids)))
-        )
+        stream_rows = list(s.scalars(select(Stream).where(Stream.youtube_id.in_(youtube_ids))))
         known_stream_ids = {row.youtube_id: row.id for row in stream_rows}
 
         # Find recordings that are in queued/downloading state for these streams

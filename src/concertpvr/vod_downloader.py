@@ -131,5 +131,5 @@ class VodDownloader:
         if exit_code != 0:
             # Include stdout errors too (yt-dlp may write "ERROR:" to stdout)
             combined = last_stderr + last_stdout
-            tail = "\n".join(combined[-10:]) or "yt-dlp exited %d" % exit_code
+            tail = "\n".join(combined[-10:]) or f"yt-dlp exited {exit_code}"
             raise VodDownloadError(tail)

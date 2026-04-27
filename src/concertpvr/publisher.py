@@ -13,7 +13,8 @@ from concertpvr.db import Database
 from concertpvr.emby import EmbyClient
 from concertpvr.ffmpeg import Splitter
 from concertpvr.metadata import MetadataBuilder, SegmentMeta
-from concertpvr.models import ChannelWatcher, Recording, Segment, Settings as _SettingsRow, Stream
+from concertpvr.models import ChannelWatcher, Recording, Segment, Stream
+from concertpvr.models import Settings as _SettingsRow
 from concertpvr.process import ProcessRunner
 
 logger = logging.getLogger(__name__)
@@ -87,7 +88,9 @@ class PublishWorker:
             date_val: _dt.date | None = (
                 stream_original_upload_date
                 if stream_original_upload_date
-                else rec_started.date() if rec_started else None
+                else rec_started.date()
+                if rec_started
+                else None
             )
 
             # festival default: per-kind dispatch
@@ -113,9 +116,7 @@ class PublishWorker:
                     watcher = s2.get(ChannelWatcher, stream_watcher_id)
                     if watcher and watcher.default_genres:
                         resolved_genres = [
-                            g.strip()
-                            for g in watcher.default_genres.split(",")
-                            if g.strip()
+                            g.strip() for g in watcher.default_genres.split(",") if g.strip()
                         ]
 
             # Plot: stream.description for VODs
@@ -196,8 +197,7 @@ class PublishWorker:
                             if watcher_pref is None:
                                 settings_row = s.get(_SettingsRow, 1)
                                 delete_flag = bool(
-                                    settings_row
-                                    and settings_row.auto_delete_source_after_publish
+                                    settings_row and settings_row.auto_delete_source_after_publish
                                 )
                             else:
                                 delete_flag = watcher_pref
@@ -210,9 +210,7 @@ class PublishWorker:
                                         p.unlink()
                                     rec.source_deleted = True
                                 except OSError:
-                                    logger.exception(
-                                        "auto-delete-source failed for rec %d", rec.id
-                                    )
+                                    logger.exception("auto-delete-source failed for rec %d", rec.id)
 
         except Exception as e:
             with self._db.session() as s:

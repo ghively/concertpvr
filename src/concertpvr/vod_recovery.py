@@ -25,6 +25,7 @@ def mark_vod_downloads_interrupted_on_startup(db: Database) -> int:
             count += 1
     if count:
         logger.warning(
-            "vod_recovery: requeued %d in-flight VOD download(s) interrupted by restart", count,
+            "vod_recovery: requeued %d in-flight VOD download(s) interrupted by restart",
+            count,
         )
     return count

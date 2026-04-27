@@ -12,7 +12,7 @@ from __future__ import annotations
 import datetime as _dt
 
 import sqlalchemy as sa
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy import JSON, Boolean, Date, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -53,8 +53,12 @@ class Settings(Base):
     session_secret: Mapped[str | None] = mapped_column(String, nullable=True)
 
     # VOD settings (v0.3)
-    max_concurrent_vod_downloads: Mapped[int] = mapped_column(Integer, nullable=False, default=2, server_default="2")
-    auto_delete_source_after_publish: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=sa.false())
+    max_concurrent_vod_downloads: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=2, server_default="2"
+    )
+    auto_delete_source_after_publish: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=sa.false()
+    )
 
 
 class Stream(Base):
@@ -123,8 +127,12 @@ class Recording(Base):
     raw_chapters_json: Mapped[str | None] = mapped_column(String, nullable=True)
 
     # VOD fields (v0.3)
-    auto_publish_after_download: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=sa.false())
-    source_deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=sa.false())
+    auto_publish_after_download: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=sa.false()
+    )
+    source_deleted: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=sa.false()
+    )
 
     stream = relationship("Stream", back_populates="recordings")
 
@@ -207,12 +215,22 @@ class ChannelWatcher(Base):
     )
 
     # VOD fields (v0.3)
-    watch_live: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=sa.true())
-    watch_vod_uploads: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=sa.false())
-    vod_segmentation_mode: Mapped[str] = mapped_column(String, nullable=False, default="chapters", server_default="chapters")
+    watch_live: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default=sa.true()
+    )
+    watch_vod_uploads: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=sa.false()
+    )
+    vod_segmentation_mode: Mapped[str] = mapped_column(
+        String, nullable=False, default="chapters", server_default="chapters"
+    )
     vod_title_filter: Mapped[str | None] = mapped_column(String, nullable=True)
     vod_artist_regex: Mapped[str | None] = mapped_column(String, nullable=True)
-    auto_publish: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=sa.false())
-    extract_setlist_from_comments: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=sa.false())
+    auto_publish: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=sa.false()
+    )
+    extract_setlist_from_comments: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=sa.false()
+    )
     default_genres: Mapped[str | None] = mapped_column(String, nullable=True)
     auto_delete_source_after_publish: Mapped[bool | None] = mapped_column(Boolean, nullable=True)

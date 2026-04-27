@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from concertpvr.process import FakeProcessRunner
-from concertpvr.vod_downloader import VodDownloadError, VodDownloader, VodProgress
+from concertpvr.vod_downloader import VodDownloader, VodDownloadError, VodProgress
 
 
 @pytest.mark.asyncio
