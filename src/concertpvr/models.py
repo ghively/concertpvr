@@ -118,7 +118,7 @@ class Recording(Base):
 
         - "recording": yt-dlp subprocess actively writing fragments to buffer_dir
         - "complete": broadcast ended cleanly, fragments concatenated to final file
-        - "failed": yt-dlp exited non-zero (network, format unavailable, etc.)
+        - "failed": reserved for live yt-dlp non-zero exits; not currently emitted (live failures roll into "interrupted" on app crash)
         - "interrupted": app crashed mid-record; orphan_recovery flips this on restart
 
     VOD download lifecycle (single finite file via yt-dlp CLI):
