@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { LiveProgressBar } from "@/components/LiveProgressBar";
+import { VodProgressBar } from "@/components/VodProgressBar";
 import { useRecordings, useStreams } from "@/lib/query";
 import type { Recording, RecordingStatus, Stream } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -125,12 +125,7 @@ export default function RecordingsPage() {
                     </div>
                     {isVodDownloading && (
                       <div className="mt-2" onClick={(e) => e.preventDefault()}>
-                        <LiveProgressBar
-                          streamId={r.stream_id}
-                          mode="determinate"
-                          pct={r.vod_pct ?? 0}
-                          eta_s={r.vod_eta_s}
-                        />
+                        <VodProgressBar recordingId={r.id} />
                       </div>
                     )}
                   </div>

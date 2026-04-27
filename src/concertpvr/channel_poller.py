@@ -91,20 +91,35 @@ async def _check_for_new_vod_uploads(
         if upload.youtube_id in known_ids:
             continue
 
-        # Filter: forward-only — skip uploads older than watcher.created_at / added_at
+        # Filter: forward-only — only queue uploads that are STRICTLY AFTER the
+        # watcher's added_at date. This means:
+        #  1. Uploads with no upload_date are skipped (we can't confirm they're new).
+        #  2. Uploads from the same day as subscription are skipped (already existed).
+        #  3. Only uploads with upload_date > watcher.added_at.date() are queued.
+        # Without this strictness, subscribing to a channel like NPR Music would
+        # auto-queue dozens of old Tiny Desk videos because flat-extract returns
+        # no upload_date for many of them — and a missing date previously fell
+        # through to "include". Bug fixed in v0.3.1.
         watcher_created: _dt.datetime | None = getattr(watcher, "added_at", None)
-        if watcher_created is not None and upload.upload_date is not None:
-            # Compare date portion only
+        if watcher_created is not None:
             watcher_date = watcher_created.date() if hasattr(watcher_created, "date") else None
-            if watcher_date is not None and upload.upload_date < watcher_date:
-                logger.debug(
-                    "watcher %s: skipping upload %s (upload_date %s < watcher created %s)",
-                    watcher.id,
-                    upload.youtube_id,
-                    upload.upload_date,
-                    watcher_date,
-                )
-                continue
+            if watcher_date is not None:
+                if upload.upload_date is None:
+                    logger.debug(
+                        "watcher %s: skipping %s — no upload_date (forward-only safety)",
+                        watcher.id,
+                        upload.youtube_id,
+                    )
+                    continue
+                if upload.upload_date <= watcher_date:
+                    logger.debug(
+                        "watcher %s: skipping %s (upload_date %s <= watcher created %s)",
+                        watcher.id,
+                        upload.youtube_id,
+                        upload.upload_date,
+                        watcher_date,
+                    )
+                    continue
 
         # Filter: apply vod_title_filter regex if set
         if not _matches_filter(upload.title, watcher.vod_title_filter):
