@@ -182,7 +182,9 @@ async def list_recent_uploads(
                 is_live=False,
                 upload_date=upload_date,
                 duration_s=duration_s,
-                thumbnail_url=str(entry["thumbnail"]) if entry.get("thumbnail") else f"https://i.ytimg.com/vi/{entry.get('id', '')}/mqdefault.jpg",
+                thumbnail_url=str(entry["thumbnail"])
+                if entry.get("thumbnail")
+                else f"https://i.ytimg.com/vi/{entry.get('id', '')}/mqdefault.jpg",
             )
         )
         if len(out) >= limit:

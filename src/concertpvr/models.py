@@ -246,9 +246,7 @@ class ChannelBacklogCache(Base):
         String, nullable=False, default="never_fetched", server_default="never_fetched"
     )
     fetched_at: Mapped[_dt.datetime | None] = mapped_column(DateTime, nullable=True)
-    total_count: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0, server_default="0"
-    )
+    total_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     items_json: Mapped[list[dict[str, object]] | None] = mapped_column(JSON, nullable=True)
     error: Mapped[str | None] = mapped_column(String, nullable=True)
     progress_pct: Mapped[int] = mapped_column(

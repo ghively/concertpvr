@@ -68,9 +68,8 @@ async def test_fetch_handles_error(db: Database) -> None:
     with patch(
         "concertpvr.backlog_cache.list_all_uploads",
         AsyncMock(side_effect=RuntimeError("boom")),
-    ):
-        with pytest.raises(RuntimeError):
-            await fetch_full_channel(db, watcher_id)
+    ), pytest.raises(RuntimeError):
+        await fetch_full_channel(db, watcher_id)
     with db.session() as s:
         cache = s.get(ChannelBacklogCache, watcher_id)
         assert cache is not None

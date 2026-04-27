@@ -64,7 +64,12 @@
       "Bash(curl -i -m 5 \"http://127.0.0.1:8787/api/recordings?stream_id=1\")",
       "Bash(curl -s -m 5 \"http://127.0.0.1:8787/api/recordings?stream_id=1\" -o /tmp/r1.json -w \"HTTP %{http_code}\\\\n\")",
       "Bash(xxd /tmp/r1.json)",
-      "Bash(curl -s -m 10 -X POST \"http://127.0.0.1:8787/api/segments/1/publish\" -H \"Content-Type: application/json\" -d '{}')"
+      "Bash(curl -s -m 10 -X POST \"http://127.0.0.1:8787/api/segments/1/publish\" -H \"Content-Type: application/json\" -d '{}')",
+      "Bash(curl -sf -m 2 http://127.0.0.1:8787/api/healthz)",
+      "Bash(curl -sf http://127.0.0.1:8787/api/healthz)",
+      "Bash(curl -sf http://127.0.0.1:8787/api/streams)",
+      "Bash(rm -f .local-data/metadata.db)",
+      "Bash(rm -rf .local-data/staging/* .local-publish/*)"
     ]
   }
 }
