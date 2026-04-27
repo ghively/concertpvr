@@ -1,24 +1,54 @@
 # Changelog
 
-## v0.3.2 (planned) — 2026-04-27
+## v0.3.2 — 2026-04-27
 
-VOD parity pass. See implementation plan at
-`docs/superpowers/plans/2026-04-27-v0.3.2-vod-parity.md`. Closes the v0.3
-spec gap that "VOD downloads is a peer feature" rather than a special-case
-bolted onto live recordings.
+VOD parity pass. Closes the v0.3 spec gap that "VOD downloads is a peer
+feature" rather than a special-case bolted onto live recordings.
 
-Highlights:
-- Dedicated `/recordings/vod` page with VOD-shaped action buttons.
-- Dedicated `VodQueueStrip`, `VodRecordingRow`, `VodProgressBar` components
-  (LiveProgressBar simplified to live-only).
+### Frontend
+
+- New `/recordings/vod` page — peer to `/recordings`, optimized for the
+  download workflow with status filter chips and VOD-shaped action
+  buttons (retry on failed, open review on complete, delete source after
+  publish).
+- New components: `VodQueueStrip` (top of `/recordings/vod` + Dashboard
+  stat strip area) and `VodRecordingRow` (purpose-built for the VOD
+  lifecycle). `LiveProgressBar` simplified to live-only — `VodProgressBar`
+  handles VOD progress.
+- Top nav gains a "VOD Downloads" entry between Recordings and Library.
+  Recordings page narrows to live-only — VOD statuses move to the new page.
 - Smart-paste channel subscribe: `watch_vod_uploads` defaults to **off**
-  with explicit consent copy on each toggle.
-- `Recording` model docstring documents the two distinct state machines
-  (live: recording → complete | failed | interrupted; VOD: vod_queued →
-  vod_downloading → complete | vod_failed).
-- Dedicated `tests/test_vod_workflow.py` mirrors the live test pattern.
+  (was on). Each toggle gets explicit consent copy. Backlog browse stays
+  manual-only with a callout.
 
-No schema changes; migration count stays at 9.
+### Backend
+
+- `Recording` model docstring documents the two state machines explicitly
+  (live: recording → complete | failed | interrupted; VOD: vod_queued →
+  vod_downloading → complete | vod_failed). `failed` annotated as
+  reserved (live-only, not currently emitted).
+- New `tests/test_vod_workflow.py` — VOD-only end-to-end flow tests in a
+  dedicated file (paste → queue → download → review → publish), mirrors
+  `test_streams_api.py` for live but isolates the VOD lifecycle.
+
+### Behavior changes
+
+- Subscribing to a channel with `watch_vod_uploads=true` queues only
+  uploads strictly *after* subscription date (forward-only — fixed in
+  v0.3.1). v0.3.2 makes this explicit in the modal copy.
+
+### Known deferrals to v0.3.3
+
+- Backlog "Most viewed" sort chip was on the v0.3 spec but is deferred:
+  yt-dlp flat-extract doesn't return `view_count`, so a per-video probe
+  is required. Spec annotated; implementation revisits with an opt-in
+  "Slow refresh" path.
+
+### No schema changes
+
+Migration count stays at 9 (0001…0009). v0.3.2 is a UX clarity pass, not
+a structural change. ~286 backend tests passing, frontend builds clean,
+Docker smoke green, e2e smoke green.
 
 ---
 

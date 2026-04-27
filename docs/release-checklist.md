@@ -111,7 +111,7 @@ Run through this before tagging a new version. Everything must pass.
 
 ## VOD parity (added v0.3.2)
 
-- [ ] Sidebar shows "VOD Downloads" as a peer-level entry between Recordings
+- [ ] Top nav shows "VOD Downloads" as a peer-level entry between Recordings
       and Library.
 - [ ] Visiting `/recordings/vod` on a fresh DB shows the empty state with a
       clear prompt.
