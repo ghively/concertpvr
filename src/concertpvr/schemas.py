@@ -247,6 +247,22 @@ class PublishOptions(BaseModel):
     year: int | None = None
 
 
+class BacklogItem(BaseModel):
+    youtube_id: str
+    title: str
+    url: str
+    thumbnail_url: str | None
+    upload_date: _dt.date | None
+    duration_s: int | None
+    # view_count is always None: yt-dlp flat-extract doesn't return view counts cheaply
+    view_count: int | None
+    state: Literal["downloaded", "queued", "not_downloaded"]
+
+
+class BacklogDownloadRequest(BaseModel):
+    video_ids: list[str]
+
+
 class ChannelWatcherRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

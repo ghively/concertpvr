@@ -26,6 +26,8 @@ class BroadcastInfo:
     channel_name: str
     is_live: bool
     upload_date: _dt.date | None = field(default=None)
+    duration_s: int | None = field(default=None)
+    thumbnail_url: str | None = field(default=None)
 
 
 @dataclass(frozen=True)
@@ -163,6 +165,10 @@ async def list_recent_uploads(
             continue
         raw_date = entry.get("release_date") or entry.get("upload_date")
         upload_date = _parse_yt_date(raw_date if isinstance(raw_date, str) else None)
+        duration_raw = entry.get("duration")
+        duration_s: int | None = (
+            int(duration_raw) if isinstance(duration_raw, (int, float)) else None
+        )
         out.append(
             BroadcastInfo(
                 youtube_id=str(entry.get("id", "")),
@@ -175,6 +181,8 @@ async def list_recent_uploads(
                 channel_name=str(entry.get("channel") or channel_name),
                 is_live=False,
                 upload_date=upload_date,
+                duration_s=duration_s,
+                thumbnail_url=str(entry["thumbnail"]) if entry.get("thumbnail") else None,
             )
         )
         if len(out) >= limit:
