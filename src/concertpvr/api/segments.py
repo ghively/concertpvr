@@ -36,6 +36,7 @@ def create_segment(
             end_s=payload.end_s,
             source=payload.source,
             status="draft",
+            genres=payload.genres,
         )
         s.add(seg)
         s.flush()
