@@ -43,7 +43,28 @@
       "Bash(PYTHONPATH=\"$\\(pwd\\)/src\" C:/Users/geneh/git/concertpvr/.venv/Scripts/python.exe -m pytest tests/test_setlist_detector.py -v)",
       "Bash(PYTHONPATH=\"$\\(pwd\\)/src\" C:/Users/geneh/git/concertpvr/.venv/Scripts/python.exe -m pytest tests/test_ytdlp.py -v)",
       "Bash(PYTHONPATH=\"$\\(pwd\\)/src\" C:/Users/geneh/git/concertpvr/.venv/Scripts/python.exe -m mypy src/concertpvr/ytdlp.py)",
-      "Bash(grep \"src\\\\\\\\\\\\\\\\\\\\|tests\\\\\\\\\\\\\\\\\")"
+      "Bash(grep \"src\\\\\\\\\\\\\\\\\\\\|tests\\\\\\\\\\\\\\\\\")",
+      "Bash(taskkill *)",
+      "PowerShell(Stop-Process *)",
+      "Bash(CPVR_DATA_DIR=\"$\\(pwd\\)/.local-data\" CPVR_PUBLISH_DIR=\"$\\(pwd\\)/.local-publish\" CPVR_STATIC_DIR=\"$\\(pwd\\)/frontend/dist\" ./.venv/Scripts/python.exe -m alembic upgrade head)",
+      "Bash(curl -sf -m 30 -X POST http://127.0.0.1:8787/api/streams -H \"Content-Type: application/json\" -d '{\"url\": \"https://www.youtube.com/watch?v=dQw4w9WgXcQ\"}')",
+      "Bash(echo \"---EXIT: $?---\")",
+      "PowerShell(Get-NetTCPConnection *)",
+      "Bash(docker --version)",
+      "Bash(docker compose *)",
+      "Bash(curl -sf -m 5 http://127.0.0.1:8787/api/healthz)",
+      "Bash(curl -sf -m 15 -X POST http://127.0.0.1:8787/api/streams -H \"Content-Type: application/json\" -d '{\"url\": \"https://www.youtube.com/@nprmusic\"}')",
+      "Bash(curl -sf -m 15 -X POST http://127.0.0.1:8787/api/channel-watchers -H \"Content-Type: application/json\" -d '{\"channel_url\":\"https://www.youtube.com/@nprmusic\",\"watch_live\":false,\"watch_vod_uploads\":true,\"auto_publish\":false}')",
+      "Bash(chmod +x C:/Users/geneh/git/concertpvr/scripts/smoke-docker.sh C:/Users/geneh/git/concertpvr/scripts/smoke-e2e.sh)",
+      "Bash(jq --version)",
+      "Bash(curl -sf -m 5 http://127.0.0.1:8787/api/recordings)",
+      "Bash(curl -sf -m 5 \"http://127.0.0.1:8787/api/recordings?stream_id=1\")",
+      "Bash(curl -s -m 5 http://127.0.0.1:8787/api/streams)",
+      "Bash(docker exec concertpvr-dev *)",
+      "Bash(curl -i -m 5 \"http://127.0.0.1:8787/api/recordings?stream_id=1\")",
+      "Bash(curl -s -m 5 \"http://127.0.0.1:8787/api/recordings?stream_id=1\" -o /tmp/r1.json -w \"HTTP %{http_code}\\\\n\")",
+      "Bash(xxd /tmp/r1.json)",
+      "Bash(curl -s -m 10 -X POST \"http://127.0.0.1:8787/api/segments/1/publish\" -H \"Content-Type: application/json\" -d '{}')"
     ]
   }
 }

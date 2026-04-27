@@ -250,11 +250,11 @@ def test_channel_result_response_shape_documented():
 
 
 def test_playlist_result_response_shape_documented():
-    assert EXPECTED_PLAYLIST_RESULT_FIELDS == {
+    assert {
         "type",
         "playlist_id",
         "playlist_title",
         "count",
         "items",
-    }
+    } == EXPECTED_PLAYLIST_RESULT_FIELDS
     assert "youtube_id" in EXPECTED_PLAYLIST_ITEM_FIELDS

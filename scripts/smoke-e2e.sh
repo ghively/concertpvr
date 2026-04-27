@@ -127,7 +127,8 @@ echo "  segment_id=$SEG_ID"
 
 # --- step 6: publish ---
 echo "=== step 6: POST /api/segments/$SEG_ID/publish ==="
-curl -sf -m 10 -X POST "$API/segments/$SEG_ID/publish" >/dev/null || fail 6 "publish call failed"
+curl -sf -m 10 -X POST "$API/segments/$SEG_ID/publish" \
+    -H "Content-Type: application/json" -d '{}' >/dev/null || fail 6 "publish call failed"
 
 # --- step 7: poll until segment is published ---
 echo "=== step 7: poll segment until published (max ${DEADLINE_PUBLISH}s) ==="

@@ -25,6 +25,8 @@ frontend/vite.config.js
 # Local data (never commit recordings or DB)
 /data/
 /media/
+.local-data/
+.local-publish/
 *.db
 *.db-journal
 *.sqlite

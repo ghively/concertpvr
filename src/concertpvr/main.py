@@ -167,9 +167,7 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
             if usable:
                 resolved_path = usable[0]
                 logger_main = _logging_vod.getLogger(__name__)
-                logger_main.info(
-                    "vod_handler: resolved %s -> %s", output_path, resolved_path
-                )
+                logger_main.info("vod_handler: resolved %s -> %s", output_path, resolved_path)
 
         # Run ffprobe to populate width/height/duration_s/size_bytes
         media_info = None

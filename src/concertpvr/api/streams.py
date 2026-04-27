@@ -10,14 +10,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response,
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-# Smart-paste URL classification — detected before the single-video probe so
-# channel and playlist URLs short-circuit to their proper handlers (avoids
-# yt-dlp trying to enumerate every video on a channel like @nprmusic).
-_CHANNEL_URL_RE = re.compile(
-    r"youtube\.com/(?:@[^/?#]+|channel/[A-Za-z0-9_-]+|c/[^/?#]+|user/[^/?#]+)(?:/[^?#]*)?/?$"
-)
-_PLAYLIST_URL_RE = re.compile(r"[?&]list=(?P<playlist_id>[A-Za-z0-9_-]+)")
-
 from concertpvr.buffer import BufferManager
 from concertpvr.db import Database
 from concertpvr.deps import get_broadcaster, get_buffer, get_db, get_pool
@@ -33,6 +25,14 @@ from concertpvr.schemas import (
 )
 from concertpvr.ws import Broadcaster
 from concertpvr.ytdlp import ProbeError, probe
+
+# Smart-paste URL classification — detected before the single-video probe so
+# channel and playlist URLs short-circuit to their proper handlers (avoids
+# yt-dlp trying to enumerate every video on a channel like @nprmusic).
+_CHANNEL_URL_RE = re.compile(
+    r"youtube\.com/(?:@[^/?#]+|channel/[A-Za-z0-9_-]+|c/[^/?#]+|user/[^/?#]+)(?:/[^?#]*)?/?$"
+)
+_PLAYLIST_URL_RE = re.compile(r"[?&]list=(?P<playlist_id>[A-Za-z0-9_-]+)")
 
 router = APIRouter()
 
