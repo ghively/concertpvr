@@ -107,6 +107,36 @@ class WatchSubscription(Base):
 
 
 class Recording(Base):
+    """A single recording artifact, either Live or VOD.
+
+    Two distinct lifecycles share this table because both produce a media
+    file consumed downstream by the publisher. The `status` column
+    discriminates which lifecycle a row belongs to:
+
+    Live recording lifecycle (live broadcast captured via HLS fragments):
+        recording → complete | failed | interrupted
+
+        - "recording": yt-dlp subprocess actively writing fragments to buffer_dir
+        - "complete": broadcast ended cleanly, fragments concatenated to final file
+        - "failed": yt-dlp exited non-zero (network, format unavailable, etc.)
+        - "interrupted": app crashed mid-record; orphan_recovery flips this on restart
+
+    VOD download lifecycle (single finite file via yt-dlp CLI):
+        vod_queued → vod_downloading → complete | vod_failed
+
+        - "vod_queued": waiting for an open VOD queue slot (cap = settings.max_concurrent_vod_downloads)
+        - "vod_downloading": yt-dlp subprocess actively downloading; progress published to recordings.{id}.progress
+        - "complete": download succeeded + ffprobe populated dimensions/duration
+        - "vod_failed": yt-dlp exited non-zero; error captured in `error` column
+
+    The "complete" state is shared because both lifecycles converge there —
+    a complete recording (regardless of origin) is publishable via the
+    segments + publisher pipeline.
+
+    Origin discrimination: `Stream.kind == "video"` → VOD-originated;
+    `Stream.kind == "live"` → live-originated.
+    """
+
     __tablename__ = "recordings"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
