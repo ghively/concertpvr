@@ -300,6 +300,9 @@ export type ChannelWatcherCreate = {
   title_filter?: string | null;
   quality_cap?: string | null;
   retention_days?: number;
+  watch_live?: boolean;
+  watch_vod_uploads?: boolean;
+  auto_publish?: boolean;
 };
 
 export type ChannelWatcherPatch = {
@@ -315,4 +318,48 @@ export const watchersApi = {
   patch: (id: number, p: ChannelWatcherPatch) =>
     api.patch<ChannelWatcher>(`/api/channel-watchers/${id}`, p),
   delete: (id: number) => api.delete<void>(`/api/channel-watchers/${id}`),
+};
+
+// ── Smart-paste / probe response shapes ─────────────────────────────────────
+
+export type ProbeChannelResult = {
+  type: "channel";
+  channel_name: string;
+  channel_id: string;
+  url: string;
+};
+
+export type ProbePlaylistItem = {
+  video_id: string;
+  title: string;
+  channel: string;
+  thumbnail_url: string | null;
+  duration_s: number | null;
+};
+
+export type ProbePlaylistResult = {
+  type: "playlist";
+  playlist_id: string;
+  playlist_title: string;
+  count: number;
+  items: ProbePlaylistItem[];
+};
+
+// A Stream-like result (kind=live or kind=video) is just a Stream object.
+// Backend may also return detected_setlist_source on the object.
+export type ProbeStreamResult = Stream & {
+  detected_setlist_source?: string | null;
+};
+
+export type ProbeResult = ProbeStreamResult | ProbeChannelResult | ProbePlaylistResult;
+
+// ── Playlist ingest ──────────────────────────────────────────────────────────
+
+export type PlaylistIngestConfirm = {
+  video_ids: string[];
+};
+
+export const playlistApi = {
+  confirm: (p: PlaylistIngestConfirm) =>
+    api.post<{ queued: number }>("/api/playlists/ingest/confirm", p),
 };

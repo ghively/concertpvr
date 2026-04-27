@@ -7,7 +7,7 @@ import { useSession } from "@/lib/query";
 
 const navItems = [
   { to: "/", label: "Dashboard", end: true },
-  { to: "/streams", label: "Streams" },
+  { to: "/sources", label: "Sources" },
   { to: "/schedule", label: "Schedule" },
   { to: "/recordings", label: "Recordings" },
   { to: "/library", label: "Library" },

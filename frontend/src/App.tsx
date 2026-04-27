@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import Dashboard from "@/pages/Dashboard";
-import Streams from "@/pages/Streams";
+import Sources from "@/pages/Sources";
 import Schedule from "@/pages/Schedule";
 import Library from "@/pages/Library";
 import Watchers from "@/pages/Watchers";
@@ -28,7 +28,8 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/" element={<AuthGate><Layout /></AuthGate>}>
         <Route index element={<Dashboard />} />
-        <Route path="streams" element={<Streams />} />
+        <Route path="streams" element={<Navigate to="/sources" replace />} />
+        <Route path="sources" element={<Sources />} />
         <Route path="schedule" element={<Schedule />} />
         <Route path="recordings" element={<Recordings />} />
         <Route path="timeline/:id" element={<TimelineEditor />} />
