@@ -214,14 +214,16 @@ import {
   type ChannelWatcherCreate,
   type ChannelWatcherPatch,
   type BacklogItem,
+  type BacklogCacheState,
   watchersApi,
 } from "./api";
 
 export const watchersKeys = {
   all: ["channel-watchers"] as const,
   one: (id: number) => ["channel-watchers", id] as const,
-  backlog: (id: number, sort: string, offset: number) =>
-    ["backlog", id, sort, offset] as const,
+  backlog: (id: number, sort: string, offset: number, q?: string) =>
+    ["backlog", id, sort, offset, q ?? ""] as const,
+  backlogStatus: (id: number) => ["backlog-status", id] as const,
 };
 
 export function useChannelWatchers() {
@@ -266,13 +268,37 @@ export function useDeleteChannelWatcher() {
   });
 }
 
-export function useWatcherBacklog(watcherId: number, sort = "newest", offset = 0) {
+export function useWatcherBacklog(watcherId: number, sort = "newest", offset = 0, q = "") {
   return useQuery<BacklogItem[]>({
-    queryKey: watchersKeys.backlog(watcherId, sort, offset),
-    queryFn: () =>
-      api.get<BacklogItem[]>(
-        `/api/channel-watchers/${watcherId}/backlog?sort=${sort}&offset=${offset}`,
-      ),
+    queryKey: watchersKeys.backlog(watcherId, sort, offset, q),
+    queryFn: () => {
+      const params = new URLSearchParams({ sort, offset: String(offset) });
+      if (q) params.set("q", q);
+      return api.get<BacklogItem[]>(
+        `/api/channel-watchers/${watcherId}/backlog?${params.toString()}`,
+      );
+    },
+    enabled: !!watcherId,
+  });
+}
+
+export function useBacklogStatus(watcherId: number, polling: boolean) {
+  return useQuery<BacklogCacheState>({
+    queryKey: ["backlog-status", watcherId],
+    queryFn: () => watchersApi.getBacklogStatus(watcherId),
+    refetchInterval: polling ? 2000 : false,
+    enabled: !!watcherId,
+  });
+}
+
+export function useRefreshBacklog(watcherId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => watchersApi.refreshBacklog(watcherId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["backlog-status", watcherId] });
+      qc.invalidateQueries({ queryKey: ["backlog", watcherId] });
+    },
   });
 }
 

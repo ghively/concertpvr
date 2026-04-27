@@ -365,9 +365,27 @@ export const watchersApi = {
   patch: (id: number, p: ChannelWatcherPatch) =>
     api.patch<ChannelWatcher>(`/api/channel-watchers/${id}`, p),
   delete: (id: number) => api.delete<void>(`/api/channel-watchers/${id}`),
+  getBacklogStatus: (watcherId: number) =>
+    api.get<BacklogCacheState>(`/api/channel-watchers/${watcherId}/backlog/status`),
+  refreshBacklog: (watcherId: number) =>
+    api.post<{ status: string; started: boolean }>(
+      `/api/channel-watchers/${watcherId}/backlog/refresh`,
+      {},
+    ),
 };
 
 // ── Backlog ──────────────────────────────────────────────────────────────────
+
+export type BacklogCacheStatus = "never_fetched" | "fetching" | "complete" | "error";
+
+export interface BacklogCacheState {
+  status: BacklogCacheStatus;
+  fetched_at: string | null;
+  total_count: number;
+  progress_pct: number;
+  error: string | null;
+  stale: boolean;
+}
 
 export type BacklogItemState = "downloaded" | "queued" | "not_downloaded";
 
