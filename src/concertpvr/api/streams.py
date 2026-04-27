@@ -162,7 +162,10 @@ async def create_stream(
         # For VODs, also create the Recording row
         if kind == "video":
             staging_dir = _Path(request.app.state.config.staging_dir)
-            output_path = staging_dir / f"vod-{info.youtube_id}.mkv"
+            # yt-dlp resolves %(ext)s to the actual container; the queue
+            # handler globs for the resolved filename and updates rec.path
+            # post-download (we don't know the format until yt-dlp picks).
+            output_path = staging_dir / f"vod-{info.youtube_id}.%(ext)s"
             rec = Recording(
                 stream_id=sid,
                 started_at=_dt.datetime.now(_dt.UTC),

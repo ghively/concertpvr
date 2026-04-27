@@ -126,7 +126,7 @@ async def confirm_playlist(
             s.add(stream)
             s.flush()
 
-            output_path = staging_dir / f"vod-{info.youtube_id}.mkv"
+            output_path = staging_dir / f"vod-{info.youtube_id}.%(ext)s"
             rec = Recording(
                 stream_id=stream.id,
                 started_at=_dt.datetime.now(_dt.UTC),

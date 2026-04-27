@@ -175,7 +175,7 @@ async def _check_for_new_vod_uploads(
             s.flush()
 
             # Build output path under staging root
-            output_path = staging_root / f"{info.youtube_id}.%(ext)s"
+            output_path = staging_root / f"vod-{info.youtube_id}.%(ext)s"
 
             rec = Recording(
                 stream_id=stream.id,

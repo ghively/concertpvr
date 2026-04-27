@@ -1,5 +1,6 @@
 """FastAPI app factory."""
 
+import logging as _logging_vod
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -149,11 +150,32 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
                     rec.error = str(e)[:500]
             return
 
+        # Resolve the actual on-disk filename. The Recording.path stored at
+        # queue-time is a yt-dlp template like "vod-<id>.%(ext)s" — yt-dlp picks
+        # the container based on the available formats and we don't know it
+        # until after the download completes. Glob for the resolved file.
+        resolved_path = output_path
+        if "%" in str(output_path):
+            template_str = str(output_path)
+            stem = template_str[: template_str.index("%")]  # ".../vod-<id>."
+            stem_path = _PathVod(stem)
+            parent = stem_path.parent
+            prefix = stem_path.name  # "vod-<id>."
+            matches = sorted(parent.glob(f"{prefix}*"))
+            # Prefer non-fragment / non-part files
+            usable = [p for p in matches if p.is_file() and p.suffix not in {".part", ".ytdl"}]
+            if usable:
+                resolved_path = usable[0]
+                logger_main = _logging_vod.getLogger(__name__)
+                logger_main.info(
+                    "vod_handler: resolved %s -> %s", output_path, resolved_path
+                )
+
         # Run ffprobe to populate width/height/duration_s/size_bytes
         media_info = None
         try:
             splitter = _Splitter(runner=_AsyncSubprocessRunner())
-            media_info = await splitter.probe(output_path)
+            media_info = await splitter.probe(resolved_path)
         except Exception:  # noqa: BLE001
             pass
 
@@ -163,8 +185,11 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
                 return
             rec.status = "complete"
             rec.ended_at = _dt_vod.datetime.now(_dt_vod.UTC)
-            if output_path.exists():
-                rec.size_bytes = output_path.stat().st_size
+            # Update path to resolved filename so downstream code (publisher,
+            # source-delete) can find the file.
+            rec.path = str(resolved_path)
+            if resolved_path.exists():
+                rec.size_bytes = resolved_path.stat().st_size
             if media_info is not None:
                 rec.width = media_info.width
                 rec.height = media_info.height
