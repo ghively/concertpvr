@@ -236,6 +236,8 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
             buf=app.state.buffer,
             bc=app.state.broadcaster,
             default_quality=quality,
+            vod_queue=app.state.vod_queue,
+            staging_root=cfg.staging_dir,
         )
 
     app.state.scheduler.add_job(

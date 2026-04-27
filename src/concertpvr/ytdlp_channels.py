@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import datetime as _dt
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 import yt_dlp  # type: ignore[import-untyped]
@@ -23,6 +25,7 @@ class BroadcastInfo:
     title: str
     channel_name: str
     is_live: bool
+    upload_date: _dt.date | None = field(default=None)
 
 
 @dataclass(frozen=True)
@@ -86,6 +89,96 @@ async def fetch_channel_live_broadcasts(channel_url: str) -> list[BroadcastInfo]
                 is_live=True,
             )
         )
+    return out
+
+
+def _uploads_url(channel_url: str) -> str:
+    """Return the /videos tab URL for upload listings."""
+    base = channel_url.rstrip("/")
+    # Strip any existing tab suffix and append /videos
+    for suffix in ("/streams", "/videos", "/live"):
+        if base.endswith(suffix):
+            base = base[: -len(suffix)]
+            break
+    return f"{base}/videos"
+
+
+def _parse_yt_date(s: str | None) -> _dt.date | None:
+    """yt-dlp returns dates as YYYYMMDD strings."""
+    if not s or len(s) != 8:
+        return None
+    try:
+        return _dt.date(int(s[:4]), int(s[4:6]), int(s[6:8]))
+    except (ValueError, TypeError):
+        return None
+
+
+async def list_recent_uploads(
+    channel_url: str,
+    *,
+    cookies_path: Path | None = None,
+    limit: int = 20,
+) -> list[BroadcastInfo]:
+    """Flat-extract the channel's /videos tab and return recent non-live uploads.
+
+    Filters out entries where ``is_live`` is truthy (covered by the live path).
+    Returns ``BroadcastInfo`` objects with ``is_live=False``.  ``upload_date`` is
+    populated from yt-dlp's ``upload_date`` or ``release_date`` field.
+    """
+    uploads_url = _uploads_url(channel_url)
+    opts: dict[str, Any] = {
+        "quiet": True,
+        "no_warnings": True,
+        "skip_download": True,
+        "extract_flat": True,
+        "playlistend": limit,
+    }
+    if cookies_path is not None and Path(cookies_path).exists():
+        opts["cookiefile"] = str(cookies_path)
+
+    def _run() -> dict[str, Any]:
+        ydl = yt_dlp.YoutubeDL(opts)
+        try:
+            info = ydl.extract_info(uploads_url, download=False)
+            return info if isinstance(info, dict) else {}
+        finally:
+            ydl.close()
+
+    try:
+        data = await asyncio.to_thread(_run)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("list_recent_uploads for %s failed: %s", channel_url, e)
+        return []
+
+    if not data:
+        return []
+
+    entries = data.get("entries") or []
+    channel_name = str(data.get("uploader") or data.get("channel") or data.get("title", ""))
+    out: list[BroadcastInfo] = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("is_live"):
+            continue
+        raw_date = entry.get("release_date") or entry.get("upload_date")
+        upload_date = _parse_yt_date(raw_date if isinstance(raw_date, str) else None)
+        out.append(
+            BroadcastInfo(
+                youtube_id=str(entry.get("id", "")),
+                url=str(
+                    entry.get("url")
+                    or entry.get("webpage_url")
+                    or f"https://www.youtube.com/watch?v={entry.get('id', '')}"
+                ),
+                title=str(entry.get("title", "")),
+                channel_name=str(entry.get("channel") or channel_name),
+                is_live=False,
+                upload_date=upload_date,
+            )
+        )
+        if len(out) >= limit:
+            break
     return out
 
 
