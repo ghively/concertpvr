@@ -131,6 +131,9 @@ export type Recording = {
   vod_pct?: number | null;
   /** seconds remaining for vod_downloading */
   vod_eta_s?: number | null;
+  /** VOD fields (v0.3) */
+  auto_publish_after_download?: boolean;
+  source_deleted?: boolean;
 };
 
 export const recordingsApi = {

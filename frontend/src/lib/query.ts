@@ -106,6 +106,23 @@ export function useRecording(id: number) {
   });
 }
 
+export function useRetryRecording() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) =>
+      api.post<{ status: string }>(`/api/recordings/${id}/retry`, {}),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["recordings"] }),
+  });
+}
+
+export function useDeleteRecordingSource() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => api.delete(`/api/recordings/${id}/source`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["recordings"] }),
+  });
+}
+
 import {
   type Schedule,
   type ScheduleCreate,
