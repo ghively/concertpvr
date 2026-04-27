@@ -10,6 +10,7 @@ const navItems = [
   { to: "/sources", label: "Sources" },
   { to: "/schedule", label: "Schedule" },
   { to: "/recordings", label: "Recordings" },
+  { to: "/recordings/vod", label: "VOD Downloads" },
   { to: "/library", label: "Library" },
   { to: "/watchers", label: "Watchers" },
 ];

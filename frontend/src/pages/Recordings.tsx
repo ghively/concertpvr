@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { VodProgressBar } from "@/components/VodProgressBar";
 import { useRecordings, useStreams } from "@/lib/query";
 import type { Recording, RecordingStatus, Stream } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -12,20 +11,14 @@ const STATUS_COLOR: Record<string, "live" | "done" | "failed" | "neutral" | "buf
   complete: "done",
   failed: "failed",
   interrupted: "failed",
-  vod_queued: "scheduled",
-  vod_downloading: "buffering",
-  vod_failed: "failed",
 };
 
 const ALL_FILTER_STATUSES: Array<{ value: RecordingStatus | "all"; label: string }> = [
   { value: "all", label: "All" },
   { value: "recording", label: "Live" },
-  { value: "vod_queued", label: "VOD queued" },
-  { value: "vod_downloading", label: "VOD downloading" },
   { value: "complete", label: "Complete" },
   { value: "failed", label: "Failed" },
   { value: "interrupted", label: "Interrupted" },
-  { value: "vod_failed", label: "VOD failed" },
 ];
 
 function fmtDuration(s: number): string {
@@ -53,12 +46,17 @@ export default function RecordingsPage() {
 
   const [statusFilter, setStatusFilter] = useState<RecordingStatus | "all">("all");
 
-  const visibleRecordings = (recordings ?? []).filter((r) =>
+  const liveOnly = (recordings ?? []).filter((r) => {
+    const stream = streamMap.get(r.stream_id);
+    return stream?.kind !== "video";
+  });
+
+  const visibleRecordings = liveOnly.filter((r) =>
     statusFilter === "all" ? true : r.status === statusFilter
   );
 
   // Only show filter chips for statuses that have at least 1 recording
-  const presentStatuses = new Set((recordings ?? []).map((r) => r.status));
+  const presentStatuses = new Set(liveOnly.map((r) => r.status));
 
   return (
     <div>
@@ -87,12 +85,12 @@ export default function RecordingsPage() {
       )}
 
       {isLoading && <p className="text-ink-dim text-xs">Loading…</p>}
-      {recordings && recordings.length === 0 && (
+      {liveOnly && liveOnly.length === 0 && (
         <Card className="text-center py-8 text-ink-dim text-xs">
           No recordings yet. Streams page → Add stream → Start buffer; or Schedule page → New schedule.
         </Card>
       )}
-      {recordings && recordings.length > 0 && visibleRecordings.length === 0 && (
+      {liveOnly && liveOnly.length > 0 && visibleRecordings.length === 0 && (
         <Card className="text-center py-8 text-ink-dim text-xs">
           No recordings match the selected filter.
         </Card>
@@ -101,7 +99,6 @@ export default function RecordingsPage() {
         <div className="space-y-2">
           {visibleRecordings.map((r: Recording) => {
             const stream = streamMap.get(r.stream_id);
-            const isVodDownloading = r.status === "vod_downloading";
             return (
               <Link key={r.id} to={`/timeline/${r.id}`}>
                 <Card className="flex items-center gap-4 hover:border-ink-faint cursor-pointer">
@@ -123,11 +120,6 @@ export default function RecordingsPage() {
                       <Badge color={STATUS_COLOR[r.status] ?? "neutral"}>{r.status}</Badge>
                       {r.is_buffer && <Badge color="buffering">buffer</Badge>}
                     </div>
-                    {isVodDownloading && (
-                      <div className="mt-2" onClick={(e) => e.preventDefault()}>
-                        <VodProgressBar recordingId={r.id} />
-                      </div>
-                    )}
                   </div>
                   <div className="text-xs text-ink-dim">Open editor →</div>
                 </Card>
