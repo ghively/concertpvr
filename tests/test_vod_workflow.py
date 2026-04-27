@@ -86,11 +86,14 @@ def test_vod_workflow_status_transitions_use_vod_namespace(client, fake_vod_prob
     info = fake_vod_probe
     client.post("/api/streams", json={"url": info.url})
 
+    # Three separate sessions intentional: each block simulates a discrete
+    # queue-handler step (enqueue → downloading → complete) so the assertions
+    # verify the transitions persist across session boundaries, not just
+    # in-memory mutation within one Unit of Work.
     db = client.app.state.db
     with db.session() as s:
         rec = s.scalar(select(Recording))
         assert rec is not None
-        # Simulate a transition the queue handler would do
         rec.status = "vod_downloading"
     with db.session() as s:
         rec = s.scalar(select(Recording))
