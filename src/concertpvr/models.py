@@ -234,3 +234,23 @@ class ChannelWatcher(Base):
     )
     default_genres: Mapped[str | None] = mapped_column(String, nullable=True)
     auto_delete_source_after_publish: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+
+
+class ChannelBacklogCache(Base):
+    __tablename__ = "channel_backlog_cache"
+
+    watcher_id: Mapped[int] = mapped_column(
+        ForeignKey("channel_watchers.id", ondelete="CASCADE"), primary_key=True
+    )
+    status: Mapped[str] = mapped_column(
+        String, nullable=False, default="never_fetched", server_default="never_fetched"
+    )
+    fetched_at: Mapped[_dt.datetime | None] = mapped_column(DateTime, nullable=True)
+    total_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    items_json: Mapped[list[dict[str, object]] | None] = mapped_column(JSON, nullable=True)
+    error: Mapped[str | None] = mapped_column(String, nullable=True)
+    progress_pct: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )

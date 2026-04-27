@@ -51,7 +51,7 @@ async def expand_playlist(
     url: str,
     *,
     cookies_path: Path | None = None,
-    limit: int = 500,
+    limit: int = 5000,
 ) -> PlaylistInfo:
     cookies_str = str(cookies_path) if cookies_path and Path(cookies_path).exists() else None
     try:

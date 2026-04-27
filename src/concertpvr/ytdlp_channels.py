@@ -182,11 +182,87 @@ async def list_recent_uploads(
                 is_live=False,
                 upload_date=upload_date,
                 duration_s=duration_s,
-                thumbnail_url=str(entry["thumbnail"]) if entry.get("thumbnail") else None,
+                thumbnail_url=str(entry["thumbnail"]) if entry.get("thumbnail") else f"https://i.ytimg.com/vi/{entry.get('id', '')}/mqdefault.jpg",
             )
         )
         if len(out) >= limit:
             break
+    return out
+
+
+async def list_all_uploads(
+    channel_url: str,
+    *,
+    cookies_path: Path | None = None,
+) -> list[BroadcastInfo]:
+    """Flat-extract the entire channel uploads tab (no playlistend cap).
+
+    For large channels this can return thousands of entries and take 30-60s.
+    Caller should run this in a background task and surface progress via
+    a status field on the cache row.
+    """
+    uploads_url = _uploads_url(channel_url)
+    opts: dict[str, Any] = {
+        "quiet": True,
+        "no_warnings": True,
+        "skip_download": True,
+        "extract_flat": True,
+        # No playlistend = full channel
+    }
+    if cookies_path is not None and Path(cookies_path).exists():
+        opts["cookiefile"] = str(cookies_path)
+
+    def _run() -> dict[str, Any]:
+        ydl = yt_dlp.YoutubeDL(opts)
+        try:
+            info = ydl.extract_info(uploads_url, download=False)
+            return info if isinstance(info, dict) else {}
+        finally:
+            ydl.close()
+
+    try:
+        data = await asyncio.to_thread(_run)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("list_all_uploads for %s failed: %s", channel_url, e)
+        raise
+
+    entries = data.get("entries") or []
+    channel_name = str(data.get("uploader") or data.get("channel") or data.get("title", ""))
+    out: list[BroadcastInfo] = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("is_live"):
+            continue
+        raw_date = entry.get("release_date") or entry.get("upload_date")
+        upload_date = _parse_yt_date(raw_date if isinstance(raw_date, str) else None)
+        duration_raw = entry.get("duration")
+        duration_s: int | None = (
+            int(duration_raw) if isinstance(duration_raw, (int, float)) else None
+        )
+        yid = str(entry.get("id", ""))
+        if not yid:
+            continue
+        # Thumbnail fallback: if flat-extract didn't return one, use YouTube's
+        # canonical mqdefault URL — guaranteed to exist for any public video.
+        thumb = entry.get("thumbnail")
+        thumbnail_url = str(thumb) if thumb else f"https://i.ytimg.com/vi/{yid}/mqdefault.jpg"
+        out.append(
+            BroadcastInfo(
+                youtube_id=yid,
+                url=str(
+                    entry.get("url")
+                    or entry.get("webpage_url")
+                    or f"https://www.youtube.com/watch?v={yid}"
+                ),
+                title=str(entry.get("title", "")),
+                channel_name=str(entry.get("channel") or channel_name),
+                is_live=False,
+                upload_date=upload_date,
+                duration_s=duration_s,
+                thumbnail_url=thumbnail_url,
+            )
+        )
     return out
 
 
