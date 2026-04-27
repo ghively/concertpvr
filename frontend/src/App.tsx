@@ -5,6 +5,7 @@ import Sources from "@/pages/Sources";
 import Schedule from "@/pages/Schedule";
 import Library from "@/pages/Library";
 import Watchers from "@/pages/Watchers";
+import WatcherDetail from "@/pages/WatcherDetail";
 import Settings from "@/pages/Settings";
 import Recordings from "@/pages/Recordings";
 import TimelineEditor from "@/pages/TimelineEditor";
@@ -35,6 +36,7 @@ export default function App() {
         <Route path="timeline/:id" element={<TimelineEditor />} />
         <Route path="library" element={<Library />} />
         <Route path="watchers" element={<Watchers />} />
+        <Route path="watchers/:id" element={<WatcherDetail />} />
         <Route path="settings" element={<Settings />} />
       </Route>
     </Routes>

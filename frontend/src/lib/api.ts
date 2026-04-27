@@ -281,6 +281,8 @@ export const schedulesApi = {
 
 // ── Channel Watchers ────────────────────────────────────────────────────────
 
+export type VodSegmentationMode = "chapters" | "whole-video" | "manual";
+
 export type ChannelWatcher = {
   id: number;
   channel_url: string;
@@ -293,6 +295,16 @@ export type ChannelWatcher = {
   last_polled: string | null;
   last_live_id: string | null;
   added_at: string;
+  // VOD fields (v0.3)
+  watch_live: boolean;
+  watch_vod_uploads: boolean;
+  vod_title_filter: string | null;
+  vod_artist_regex: string | null;
+  vod_segmentation_mode: VodSegmentationMode;
+  default_genres: string | null;
+  auto_publish: boolean;
+  extract_setlist_from_comments: boolean;
+  auto_delete_source_after_publish: boolean | null;
 };
 
 export type ChannelWatcherCreate = {
@@ -310,14 +322,40 @@ export type ChannelWatcherPatch = {
   quality_cap?: string | null;
   retention_days?: number;
   enabled?: boolean;
+  // VOD fields (v0.3)
+  watch_live?: boolean;
+  watch_vod_uploads?: boolean;
+  vod_title_filter?: string | null;
+  vod_artist_regex?: string | null;
+  vod_segmentation_mode?: VodSegmentationMode;
+  default_genres?: string | null;
+  auto_publish?: boolean;
+  extract_setlist_from_comments?: boolean;
+  auto_delete_source_after_publish?: boolean | null;
 };
 
 export const watchersApi = {
   list: () => api.get<ChannelWatcher[]>("/api/channel-watchers"),
+  get: (id: number) => api.get<ChannelWatcher>(`/api/channel-watchers/${id}`),
   create: (p: ChannelWatcherCreate) => api.post<ChannelWatcher>("/api/channel-watchers", p),
   patch: (id: number, p: ChannelWatcherPatch) =>
     api.patch<ChannelWatcher>(`/api/channel-watchers/${id}`, p),
   delete: (id: number) => api.delete<void>(`/api/channel-watchers/${id}`),
+};
+
+// ── Backlog ──────────────────────────────────────────────────────────────────
+
+export type BacklogItemState = "downloaded" | "queued" | "not_downloaded";
+
+export type BacklogItem = {
+  youtube_id: string;
+  title: string;
+  url: string;
+  thumbnail_url: string | null;
+  upload_date: string | null;
+  duration_s: number | null;
+  view_count: number | null;
+  state: BacklogItemState;
 };
 
 // ── Smart-paste / probe response shapes ─────────────────────────────────────

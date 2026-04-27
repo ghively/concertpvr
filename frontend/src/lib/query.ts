@@ -204,11 +204,15 @@ import {
   type ChannelWatcher,
   type ChannelWatcherCreate,
   type ChannelWatcherPatch,
+  type BacklogItem,
   watchersApi,
 } from "./api";
 
 export const watchersKeys = {
   all: ["channel-watchers"] as const,
+  one: (id: number) => ["channel-watchers", id] as const,
+  backlog: (id: number, sort: string, offset: number) =>
+    ["backlog", id, sort, offset] as const,
 };
 
 export function useChannelWatchers() {
@@ -216,6 +220,13 @@ export function useChannelWatchers() {
     queryKey: watchersKeys.all,
     queryFn: () => watchersApi.list(),
     refetchInterval: 60_000,
+  });
+}
+
+export function useChannelWatcher(id: number) {
+  return useQuery<ChannelWatcher>({
+    queryKey: watchersKeys.one(id),
+    queryFn: () => watchersApi.get(id),
   });
 }
 
@@ -231,7 +242,10 @@ export function useUpdateChannelWatcher() {
   const qc = useQueryClient();
   return useMutation<ChannelWatcher, Error, { id: number; patch: ChannelWatcherPatch }>({
     mutationFn: ({ id, patch }) => watchersApi.patch(id, patch),
-    onSuccess: () => qc.invalidateQueries({ queryKey: watchersKeys.all }),
+    onSuccess: (data, { id }) => {
+      qc.invalidateQueries({ queryKey: watchersKeys.all });
+      qc.setQueryData(watchersKeys.one(id), data);
+    },
   });
 }
 
@@ -240,6 +254,16 @@ export function useDeleteChannelWatcher() {
   return useMutation<void, Error, number>({
     mutationFn: (id) => watchersApi.delete(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: watchersKeys.all }),
+  });
+}
+
+export function useWatcherBacklog(watcherId: number, sort = "newest", offset = 0) {
+  return useQuery<BacklogItem[]>({
+    queryKey: watchersKeys.backlog(watcherId, sort, offset),
+    queryFn: () =>
+      api.get<BacklogItem[]>(
+        `/api/channel-watchers/${watcherId}/backlog?sort=${sort}&offset=${offset}`,
+      ),
   });
 }
 
