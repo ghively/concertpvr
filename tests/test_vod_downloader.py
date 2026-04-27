@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import sys
+
 import pytest
 
 from concertpvr.process import FakeProcessRunner
@@ -24,7 +26,8 @@ async def test_downloader_invokes_ytdlp_with_correct_args(tmp_path):
     )
 
     args = runner.spawned[0]
-    assert args[0] == "yt-dlp"
+    # Invoked as `python -m yt_dlp` so yt-dlp is found regardless of PATH
+    assert args[:3] == [sys.executable, "-m", "yt_dlp"]
     assert "--continue" in args
     assert "-f" in args and "bestvideo*+bestaudio/best" in args
     assert "-o" in args

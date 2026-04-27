@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+import sys
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -92,8 +93,13 @@ class VodDownloader:
     ) -> None:
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
+        # Invoke yt-dlp as a Python module via the current interpreter so we
+        # don't rely on `yt-dlp` being on PATH (Windows venvs don't put it
+        # there unless activated). Works identically in Docker.
         args: list[str] = [
-            "yt-dlp",
+            sys.executable,
+            "-m",
+            "yt_dlp",
             "--continue",
             "--no-part",
             "--no-playlist",
