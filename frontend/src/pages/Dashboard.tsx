@@ -21,9 +21,12 @@ export default function DashboardPage() {
   const { data: recordings } = useRecordings();
   const { data: schedules } = useSchedules();
   const { data: settings } = useSettings();
-  const max = settings?.max_concurrent_recordings ?? 4;
+  const liveMax = settings?.max_concurrent_recordings ?? 4;
+  const vodMax = settings?.max_concurrent_vod_downloads ?? 2;
 
   const recordingNow = (recordings ?? []).filter((r) => r.status === "recording");
+  const liveActive = recordingNow.length;
+  const vodActive = (recordings ?? []).filter((r) => r.status === "vod_downloading").length;
   const completed = (recordings ?? []).filter((r) => r.status === "complete").length;
   const upcoming = (schedules ?? [])
     .filter((s) => s.status === "pending" && new Date(s.starts_at).getTime() > Date.now())
@@ -35,7 +38,8 @@ export default function DashboardPage() {
 
       <StatStrip
         items={[
-          { label: "Recording now", value: `${recordingNow.length}/${max}`, color: "terra" },
+          { label: "Live now", value: `${liveActive}/${liveMax}`, color: "terra" },
+          { label: "VODs downloading", value: `${vodActive}/${vodMax}`, color: "sage" },
           { label: "Streams tracked", value: streams?.length ?? 0, color: "amber" },
           { label: "Scheduled", value: upcoming.length, color: "mauve" },
           { label: "Completed", value: completed, color: "sage" },

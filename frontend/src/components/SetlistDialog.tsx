@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogBody, DialogFooter, DialogHeader } from "@/components/ui/dialog";
 import { setlistsApi } from "@/lib/api";
@@ -14,15 +14,25 @@ export function SetlistDialog({
   recordingId,
   open,
   onOpenChange,
+  defaultText,
 }: {
   recordingId: number;
   open: boolean;
   onOpenChange: (o: boolean) => void;
+  defaultText?: string | null;
 }) {
-  const [text, setText] = useState("");
+  const [text, setText] = useState(defaultText ?? "");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const qc = useQueryClient();
+
+  // Sync defaultText when modal opens
+  useEffect(() => {
+    if (open) {
+      setText(defaultText ?? "");
+      setError(null);
+    }
+  }, [open, defaultText]);
 
   const submit = async () => {
     setError(null);

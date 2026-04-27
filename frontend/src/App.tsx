@@ -9,6 +9,7 @@ import WatcherDetail from "@/pages/WatcherDetail";
 import Settings from "@/pages/Settings";
 import Recordings from "@/pages/Recordings";
 import TimelineEditor from "@/pages/TimelineEditor";
+import PostDownloadReview from "@/pages/PostDownloadReview";
 import Login from "@/pages/Login";
 import { useSession } from "@/lib/query";
 
@@ -33,6 +34,7 @@ export default function App() {
         <Route path="sources" element={<Sources />} />
         <Route path="schedule" element={<Schedule />} />
         <Route path="recordings" element={<Recordings />} />
+        <Route path="recordings/:id/review" element={<PostDownloadReview />} />
         <Route path="timeline/:id" element={<TimelineEditor />} />
         <Route path="library" element={<Library />} />
         <Route path="watchers" element={<Watchers />} />

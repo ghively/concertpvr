@@ -42,6 +42,9 @@ export type Settings = {
   max_concurrent_recordings: number;
   auto_prune_when_full: boolean;
   yt_dlp_cookies_path: string | null;
+  // VOD fields (v0.3)
+  max_concurrent_vod_downloads: number;
+  auto_delete_source_after_publish: boolean;
 };
 
 export type SettingsPatch = Partial<Settings>;
@@ -64,6 +67,13 @@ export type Stream = {
   channel_name: string;
   thumbnail_url: string | null;
   added_at: string;
+  // VOD metadata (v0.3)
+  description?: string | null;
+  upload_date?: string | null;
+  duration_s?: number | null;
+  youtube_tags?: string[] | null;
+  detected_setlist_text?: string | null;
+  detected_setlist_source?: string | null;
 };
 
 export const streamsApi = {
@@ -94,7 +104,14 @@ export const watchApi = {
 
 // ── Recordings ──────────────────────────────────────────────────────────────
 
-export type RecordingStatus = "recording" | "complete" | "failed" | "interrupted";
+export type RecordingStatus =
+  | "recording"
+  | "complete"
+  | "failed"
+  | "interrupted"
+  | "vod_queued"
+  | "vod_downloading"
+  | "vod_failed";
 
 export type Recording = {
   id: number;
@@ -110,6 +127,10 @@ export type Recording = {
   status: RecordingStatus;
   is_buffer: boolean;
   error: string | null;
+  /** 0–100 download progress for vod_downloading */
+  vod_pct?: number | null;
+  /** seconds remaining for vod_downloading */
+  vod_eta_s?: number | null;
 };
 
 export const recordingsApi = {
@@ -138,6 +159,7 @@ export type Segment = {
   emby_path: string | null;
   poster_path: string | null;
   nfo_path: string | null;
+  genres?: string | null;
 };
 
 export type SegmentCreate = {
@@ -147,6 +169,7 @@ export type SegmentCreate = {
   start_s: number;
   end_s: number;
   source?: SegmentSource;
+  genres?: string | null;
 };
 
 export type SegmentPatch = {
@@ -154,6 +177,7 @@ export type SegmentPatch = {
   title?: string | null;
   start_s?: number;
   end_s?: number;
+  genres?: string | null;
 };
 
 export type PublishOptions = {

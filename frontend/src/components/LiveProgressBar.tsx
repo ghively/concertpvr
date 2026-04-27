@@ -27,10 +27,46 @@ function fmtDuration(s: number): string {
   return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${sec.toString().padStart(2, "0")}`;
 }
 
-export function LiveProgressBar({ streamId }: { streamId: number }) {
+function fmtEta(etaS: number): string {
+  if (etaS < 60) return `${Math.round(etaS)}s`;
+  if (etaS < 3600) return `${Math.round(etaS / 60)}m`;
+  return `${(etaS / 3600).toFixed(1)}h`;
+}
+
+interface LiveProgressBarProps {
+  streamId: number;
+  mode?: "indeterminate" | "determinate";
+  /** 0–100, used when mode === "determinate" */
+  pct?: number;
+  /** seconds remaining, used when mode === "determinate" */
+  eta_s?: number | null;
+}
+
+export function LiveProgressBar({ streamId, mode = "indeterminate", pct, eta_s }: LiveProgressBarProps) {
   const { last, connected } = useWebSocket<ProgressMsg>(
     `/ws/streams/${streamId}/progress`,
   );
+
+  if (mode === "determinate") {
+    const safePct = Math.min(100, Math.max(0, pct ?? 0));
+    return (
+      <div className="space-y-1">
+        <div className="flex items-center justify-between text-[11px] font-mono text-ink-dim">
+          <span className="text-sage">{safePct.toFixed(1)}%</span>
+          {eta_s != null && (
+            <span className="text-ink-faint">ETA {fmtEta(eta_s)}</span>
+          )}
+        </div>
+        <div className="h-1.5 w-full rounded-full bg-surface-3 overflow-hidden">
+          <div
+            className="h-full rounded-full bg-sage transition-all duration-500"
+            style={{ width: `${safePct}%` }}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-center gap-3 text-[11px] font-mono text-ink-dim">
       <span

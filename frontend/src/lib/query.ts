@@ -45,6 +45,7 @@ export function useStream(id: number) {
   return useQuery<Stream>({
     queryKey: keys.stream(id),
     queryFn: () => streamsApi.get(id),
+    enabled: !!id,
   });
 }
 
@@ -94,6 +95,14 @@ export function useRecordings(streamId?: number) {
   return useQuery<Recording[]>({
     queryKey: keys.recordings(streamId),
     queryFn: () => recordingsApi.list(streamId),
+  });
+}
+
+export function useRecording(id: number) {
+  return useQuery<Recording>({
+    queryKey: ["recordings", id],
+    queryFn: () => recordingsApi.get(id),
+    enabled: !!id,
   });
 }
 
