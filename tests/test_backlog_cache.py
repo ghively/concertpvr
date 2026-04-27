@@ -65,10 +65,13 @@ async def test_fetch_populates_cache_with_items(db: Database) -> None:
 @pytest.mark.asyncio
 async def test_fetch_handles_error(db: Database) -> None:
     watcher_id = _seed_watcher(db)
-    with patch(
-        "concertpvr.backlog_cache.list_all_uploads",
-        AsyncMock(side_effect=RuntimeError("boom")),
-    ), pytest.raises(RuntimeError):
+    with (
+        patch(
+            "concertpvr.backlog_cache.list_all_uploads",
+            AsyncMock(side_effect=RuntimeError("boom")),
+        ),
+        pytest.raises(RuntimeError),
+    ):
         await fetch_full_channel(db, watcher_id)
     with db.session() as s:
         cache = s.get(ChannelBacklogCache, watcher_id)
