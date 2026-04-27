@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import datetime as _dt
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from xml.sax.saxutils import escape
 
@@ -21,6 +21,8 @@ class SegmentMeta:
     duration_s: int
     width: int | None
     height: int | None
+    plot: str | None = None
+    genres: list[str] = field(default_factory=list)
 
 
 POSTER_W: int = 1000
@@ -51,7 +53,16 @@ class MetadataBuilder:
             lines.append(f"  <studio>{escape(meta.festival)}</studio>")
         if meta.venue:
             lines.append(f"  <set><name>{escape(meta.venue)}</name></set>")
-        lines.append("  <genre>Concert</genre>")
+        if meta.plot:
+            plot_text = meta.plot[:2000]
+            lines.append(f"  <plot>{escape(plot_text)}</plot>")
+        if meta.genres:
+            for genre in meta.genres:
+                g = genre.strip()
+                if g:
+                    lines.append(f"  <genre>{escape(g)}</genre>")
+        else:
+            lines.append("  <genre>Concert</genre>")
         lines.append("  <tag>concertpvr</tag>")
         lines.append("</movie>")
 

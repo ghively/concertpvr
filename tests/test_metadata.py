@@ -89,3 +89,55 @@ def test_build_fanart_without_source_creates_default(tmp_path: Path):
     mb = MetadataBuilder()
     fan = mb.build_fanart(None, tmp_path)
     assert fan.exists()
+
+
+def test_nfo_emits_multiple_genres(tmp_path: Path):
+    mb = MetadataBuilder()
+    nfo = mb.build_nfo(_meta(genres=["Indie", "Psych", "Funk"]), tmp_path)
+    text = nfo.read_text(encoding="utf-8")
+    assert "<genre>Indie</genre>" in text
+    assert "<genre>Psych</genre>" in text
+    assert "<genre>Funk</genre>" in text
+    assert "<genre>Concert</genre>" not in text
+
+
+def test_nfo_falls_back_to_concert_when_no_genres(tmp_path: Path):
+    mb = MetadataBuilder()
+    nfo = mb.build_nfo(_meta(), tmp_path)
+    text = nfo.read_text(encoding="utf-8")
+    assert "<genre>Concert</genre>" in text
+    assert "<tag>concertpvr</tag>" in text
+
+
+def test_nfo_skips_empty_genre_strings(tmp_path: Path):
+    mb = MetadataBuilder()
+    nfo = mb.build_nfo(_meta(genres=["Indie", "", "  "]), tmp_path)
+    text = nfo.read_text(encoding="utf-8")
+    assert "<genre>Indie</genre>" in text
+    # Don't emit empty genre tags
+    assert text.count("<genre>") == 1
+
+
+def test_nfo_emits_plot_when_set(tmp_path: Path):
+    mb = MetadataBuilder()
+    nfo = mb.build_nfo(_meta(plot="A beautiful set from the rural Texas garage."), tmp_path)
+    text = nfo.read_text(encoding="utf-8")
+    assert "<plot>A beautiful set from the rural Texas garage.</plot>" in text
+
+
+def test_nfo_omits_plot_when_none(tmp_path: Path):
+    mb = MetadataBuilder()
+    nfo = mb.build_nfo(_meta(), tmp_path)
+    text = nfo.read_text(encoding="utf-8")
+    assert "<plot>" not in text
+
+
+def test_nfo_truncates_long_plot(tmp_path: Path):
+    mb = MetadataBuilder()
+    long_plot = "x" * 5000
+    nfo = mb.build_nfo(_meta(plot=long_plot), tmp_path)
+    text = nfo.read_text(encoding="utf-8")
+    # Find the plot element and assert internal text length capped at 2000.
+    start = text.find("<plot>") + len("<plot>")
+    end = text.find("</plot>")
+    assert end - start == 2000
