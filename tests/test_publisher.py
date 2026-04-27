@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from concertpvr.db import Database
-from concertpvr.models import Base, Recording, Segment, Stream
+from concertpvr.models import Base, ChannelWatcher, Recording, Segment, Stream
 from concertpvr.process import AsyncSubprocessRunner
 from concertpvr.publisher import PublishWorker
 
@@ -148,3 +148,210 @@ async def test_publish_marks_failed_on_invalid_folder_pattern(db, tmp_path, fixt
         assert (
             "folder_pattern" in (seg.error or "").lower() or "invalid" in (seg.error or "").lower()
         )
+
+
+def _seed_vod(
+    db: Database,
+    source_path: Path,
+    *,
+    kind: str = "video",
+    channel_name: str = "NPR Music",
+    original_upload_date: dt.date | None = dt.date(2020, 9, 2),
+    description: str | None = None,
+    artist: str = "Khruangbin",
+    genres: str | None = None,
+    watcher_id: int | None = None,
+) -> int:
+    with db.session() as s:
+        stream = Stream(
+            kind=kind,
+            youtube_id="vod-x",
+            url="https://youtube.com/watch?v=vod-x",
+            title="Khruangbin Full Concert",
+            channel_name=channel_name,
+            original_upload_date=original_upload_date,
+            description=description,
+            watcher_id=watcher_id,
+        )
+        s.add(stream)
+        s.flush()
+        rec = Recording(
+            stream_id=stream.id,
+            started_at=dt.datetime(2026, 4, 26, 10, 0, tzinfo=dt.UTC),
+            path=str(source_path),
+            is_buffer=False,
+            status="complete",
+        )
+        s.add(rec)
+        s.flush()
+        seg = Segment(
+            recording_id=rec.id,
+            artist=artist,
+            title="Full Set",
+            start_s=0,
+            end_s=2,
+            source="manual",
+            status="draft",
+            genres=genres,
+        )
+        s.add(seg)
+        s.flush()
+        return seg.id
+
+
+@pytest.mark.asyncio
+async def test_publish_uses_upload_date_year_for_vod(db, tmp_path, fixture_video):
+    """A VOD with original_upload_date in 2020 should produce {year}=2020 even
+    if the recording was downloaded in 2026."""
+    seg_id = _seed_vod(db, fixture_video, original_upload_date=dt.date(2020, 9, 2))
+
+    worker = PublishWorker(
+        db=db,
+        runner=AsyncSubprocessRunner(),
+        publish_root=tmp_path / "media",
+        folder_pattern="{artist} ({year})",
+        emby_client=MagicMock(trigger_path_scan=AsyncMock()),
+    )
+    await worker.publish(seg_id)
+
+    with db.session() as s:
+        seg = s.get(Segment, seg_id)
+        assert seg.emby_path is not None
+        assert "(2020)" in seg.emby_path
+
+
+@pytest.mark.asyncio
+async def test_publish_channel_token(db, tmp_path, fixture_video):
+    """folder_pattern with {channel} resolves to stream.channel_name."""
+    seg_id = _seed_vod(db, fixture_video, channel_name="NPR Music", artist="Khruangbin")
+
+    worker = PublishWorker(
+        db=db,
+        runner=AsyncSubprocessRunner(),
+        publish_root=tmp_path / "media",
+        folder_pattern="{channel}/{artist}",
+        emby_client=MagicMock(trigger_path_scan=AsyncMock()),
+    )
+    await worker.publish(seg_id)
+
+    with db.session() as s:
+        seg = s.get(Segment, seg_id)
+        assert seg.emby_path is not None
+        assert "NPR Music" in seg.emby_path
+        assert "Khruangbin" in seg.emby_path
+
+
+@pytest.mark.asyncio
+async def test_publish_festival_defaults_to_channel_name_for_vod(db, tmp_path, fixture_video):
+    """For kind=video, {festival} should resolve to channel_name."""
+    seg_id = _seed_vod(db, fixture_video, channel_name="NPR Music", kind="video")
+
+    worker = PublishWorker(
+        db=db,
+        runner=AsyncSubprocessRunner(),
+        publish_root=tmp_path / "media",
+        folder_pattern="{festival}",
+        emby_client=MagicMock(trigger_path_scan=AsyncMock()),
+    )
+    await worker.publish(seg_id)
+
+    with db.session() as s:
+        seg = s.get(Segment, seg_id)
+        assert seg.emby_path is not None
+        assert "NPR Music" in seg.emby_path
+
+
+@pytest.mark.asyncio
+async def test_publish_genres_resolution_per_segment_overrides_watcher(
+    db, tmp_path, fixture_video
+):
+    """Segment.genres set → use that; watcher.default_genres is ignored."""
+    with db.session() as s:
+        watcher = ChannelWatcher(
+            channel_url="https://youtube.com/@npmmusic",
+            channel_name="NPR Music",
+            default_genres="Indie,Folk",
+        )
+        s.add(watcher)
+        s.flush()
+        watcher_id = watcher.id
+
+    seg_id = _seed_vod(
+        db, fixture_video, genres="Rock", watcher_id=watcher_id
+    )
+
+    worker = PublishWorker(
+        db=db,
+        runner=AsyncSubprocessRunner(),
+        publish_root=tmp_path / "media",
+        folder_pattern="{artist} ({year})",
+        emby_client=MagicMock(trigger_path_scan=AsyncMock()),
+    )
+    await worker.publish(seg_id)
+
+    with db.session() as s:
+        seg = s.get(Segment, seg_id)
+        assert seg.nfo_path is not None
+        nfo_text = Path(seg.nfo_path).read_text(encoding="utf-8")
+        assert "<genre>Rock</genre>" in nfo_text
+        assert "<genre>Indie</genre>" not in nfo_text
+        assert "<genre>Folk</genre>" not in nfo_text
+
+
+@pytest.mark.asyncio
+async def test_publish_genres_falls_back_to_watcher_default_when_segment_null(
+    db, tmp_path, fixture_video
+):
+    """Segment.genres=None → inherit watcher.default_genres."""
+    with db.session() as s:
+        watcher = ChannelWatcher(
+            channel_url="https://youtube.com/@npmmusic2",
+            channel_name="NPR Music",
+            default_genres="Indie,Folk",
+        )
+        s.add(watcher)
+        s.flush()
+        watcher_id = watcher.id
+
+    seg_id = _seed_vod(
+        db, fixture_video, genres=None, watcher_id=watcher_id
+    )
+
+    worker = PublishWorker(
+        db=db,
+        runner=AsyncSubprocessRunner(),
+        publish_root=tmp_path / "media",
+        folder_pattern="{artist} ({year})",
+        emby_client=MagicMock(trigger_path_scan=AsyncMock()),
+    )
+    await worker.publish(seg_id)
+
+    with db.session() as s:
+        seg = s.get(Segment, seg_id)
+        assert seg.nfo_path is not None
+        nfo_text = Path(seg.nfo_path).read_text(encoding="utf-8")
+        assert "<genre>Indie</genre>" in nfo_text
+        assert "<genre>Folk</genre>" in nfo_text
+
+
+@pytest.mark.asyncio
+async def test_publish_plot_set_from_description_for_vods(db, tmp_path, fixture_video):
+    """stream.kind=video with description → NFO has <plot> element."""
+    description = "Khruangbin performing live at NPR's Tiny Desk."
+    seg_id = _seed_vod(db, fixture_video, description=description, kind="video")
+
+    worker = PublishWorker(
+        db=db,
+        runner=AsyncSubprocessRunner(),
+        publish_root=tmp_path / "media",
+        folder_pattern="{artist} ({year})",
+        emby_client=MagicMock(trigger_path_scan=AsyncMock()),
+    )
+    await worker.publish(seg_id)
+
+    with db.session() as s:
+        seg = s.get(Segment, seg_id)
+        assert seg.nfo_path is not None
+        nfo_text = Path(seg.nfo_path).read_text(encoding="utf-8")
+        assert "<plot>" in nfo_text
+        assert "Tiny Desk" in nfo_text

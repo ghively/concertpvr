@@ -72,3 +72,12 @@ def test_patch_settings_accepts_valid_folder_pattern(client):
     r = client.patch("/api/settings", json={"folder_pattern": "{artist} ({year})"})
     assert r.status_code == 200
     assert r.json()["folder_pattern"] == "{artist} ({year})"
+
+
+def test_patch_settings_accepts_channel_in_folder_pattern(client):
+    r = client.patch(
+        "/api/settings",
+        json={"folder_pattern": "{channel}/{artist} ({year})"},
+    )
+    assert r.status_code == 200
+    assert r.json()["folder_pattern"] == "{channel}/{artist} ({year})"
