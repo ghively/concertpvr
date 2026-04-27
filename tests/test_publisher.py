@@ -355,3 +355,181 @@ async def test_publish_plot_set_from_description_for_vods(db, tmp_path, fixture_
         nfo_text = Path(seg.nfo_path).read_text(encoding="utf-8")
         assert "<plot>" in nfo_text
         assert "Tiny Desk" in nfo_text
+
+
+# ---------------------------------------------------------------------------
+# Auto-delete source tests
+# ---------------------------------------------------------------------------
+
+
+def _seed_with_settings(db: Database, source_path: Path, *, auto_delete: bool) -> int:
+    """Seed a single-segment recording with global auto_delete_source_after_publish setting."""
+    from concertpvr.models import Settings
+
+    with db.session() as s:
+        settings = s.get(Settings, 1)
+        if settings is None:
+            settings = Settings(id=1)
+            s.add(settings)
+        settings.auto_delete_source_after_publish = auto_delete
+        s.flush()
+
+    return _seed(db, source_path)
+
+
+@pytest.mark.asyncio
+async def test_publish_auto_deletes_source_when_settings_say_so(db, tmp_path, fixture_video):
+    """When settings.auto_delete=True and only segment is published, source file is removed."""
+    # Use a copy of the fixture so we can delete it without affecting other tests
+    source = tmp_path / "source.mp4"
+    import shutil
+    shutil.copy(str(fixture_video), str(source))
+
+    seg_id = _seed_with_settings(db, source, auto_delete=True)
+
+    worker = PublishWorker(
+        db=db,
+        runner=AsyncSubprocessRunner(),
+        publish_root=tmp_path / "media",
+        folder_pattern="{artist} ({year})",
+        emby_client=MagicMock(trigger_path_scan=AsyncMock()),
+    )
+    await worker.publish(seg_id, year=2026)
+
+    assert not source.exists(), "source file should have been auto-deleted"
+
+    with db.session() as s:
+        seg = s.get(Segment, seg_id)
+        assert seg is not None
+        rec = s.get(Recording, seg.recording_id)
+        assert rec is not None
+        assert rec.source_deleted is True
+
+
+@pytest.mark.asyncio
+async def test_publish_does_not_delete_source_when_some_segments_unpublished(
+    db, tmp_path, fixture_video
+):
+    """With 2 segments and only 1 published, source should be preserved."""
+    source = tmp_path / "source2.mp4"
+    import shutil
+    shutil.copy(str(fixture_video), str(source))
+
+    from concertpvr.models import Settings
+
+    with db.session() as s:
+        settings = s.get(Settings, 1)
+        if settings is None:
+            settings = Settings(id=1)
+            s.add(settings)
+        settings.auto_delete_source_after_publish = True
+        s.flush()
+
+    # Seed with 2 segments
+    with db.session() as s:
+        stream = Stream(
+            kind="live",
+            youtube_id="two-segs",
+            url="u",
+            title="T — Stage",
+            channel_name="T",
+        )
+        s.add(stream)
+        s.flush()
+        rec = Recording(
+            stream_id=stream.id,
+            started_at=dt.datetime(2026, 4, 12, 14, 0, tzinfo=dt.UTC),
+            path=str(source),
+            is_buffer=False,
+            status="complete",
+        )
+        s.add(rec)
+        s.flush()
+        seg1 = Segment(
+            recording_id=rec.id,
+            artist="Artist A",
+            title="Song A",
+            start_s=0,
+            end_s=1,
+            source="manual",
+            status="draft",
+        )
+        seg2 = Segment(
+            recording_id=rec.id,
+            artist="Artist B",
+            title="Song B",
+            start_s=1,
+            end_s=2,
+            source="manual",
+            status="draft",
+        )
+        s.add(seg1)
+        s.add(seg2)
+        s.flush()
+        seg1_id = seg1.id
+
+    worker = PublishWorker(
+        db=db,
+        runner=AsyncSubprocessRunner(),
+        publish_root=tmp_path / "media",
+        folder_pattern="{artist} ({year})",
+        emby_client=MagicMock(trigger_path_scan=AsyncMock()),
+    )
+    # Only publish seg1; seg2 remains draft
+    await worker.publish(seg1_id, year=2026)
+
+    assert source.exists(), "source should NOT be deleted while seg2 is still draft"
+
+    with db.session() as s:
+        seg = s.get(Segment, seg1_id)
+        assert seg is not None
+        rec = s.get(Recording, seg.recording_id)
+        assert rec is not None
+        assert rec.source_deleted is False
+
+
+@pytest.mark.asyncio
+async def test_publish_watcher_pref_overrides_settings(db, tmp_path, fixture_video):
+    """watcher.auto_delete=False wins even when settings.auto_delete=True."""
+    source = tmp_path / "source3.mp4"
+    import shutil
+    shutil.copy(str(fixture_video), str(source))
+
+    from concertpvr.models import Settings
+
+    with db.session() as s:
+        settings = s.get(Settings, 1)
+        if settings is None:
+            settings = Settings(id=1)
+            s.add(settings)
+        settings.auto_delete_source_after_publish = True
+        s.flush()
+
+        watcher = ChannelWatcher(
+            channel_url="https://youtube.com/@override",
+            channel_name="Override Channel",
+            auto_delete_source_after_publish=False,
+        )
+        s.add(watcher)
+        s.flush()
+        watcher_id = watcher.id
+
+    seg_id = _seed_vod(db, source, watcher_id=watcher_id)
+
+    worker = PublishWorker(
+        db=db,
+        runner=AsyncSubprocessRunner(),
+        publish_root=tmp_path / "media",
+        folder_pattern="{artist} ({year})",
+        emby_client=MagicMock(trigger_path_scan=AsyncMock()),
+    )
+    await worker.publish(seg_id)
+
+    assert source.exists(), "source should NOT be deleted because watcher pref=False overrides settings"
+
+    with db.session() as s:
+        seg = s.get(Segment, seg_id)
+        assert seg is not None
+        rec = s.get(Recording, seg.recording_id)
+        assert rec is not None
+        assert rec.source_deleted is False

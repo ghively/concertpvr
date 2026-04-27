@@ -3,14 +3,20 @@
 from __future__ import annotations
 
 import datetime as _dt
+import logging
+import shutil
 from pathlib import Path
+
+from sqlalchemy import select
 
 from concertpvr.db import Database
 from concertpvr.emby import EmbyClient
 from concertpvr.ffmpeg import Splitter
 from concertpvr.metadata import MetadataBuilder, SegmentMeta
-from concertpvr.models import ChannelWatcher, Recording, Segment, Stream
+from concertpvr.models import ChannelWatcher, Recording, Segment, Settings as _SettingsRow, Stream
 from concertpvr.process import ProcessRunner
+
+logger = logging.getLogger(__name__)
 
 
 class PublishWorker:
@@ -173,6 +179,40 @@ class PublishWorker:
                     seg.emby_path = str(target_dir)
                     seg.poster_path = str(poster_path)
                     seg.nfo_path = str(nfo_path)
+
+                    # Auto-delete source if all segments are now published
+                    rec = s.get(Recording, seg.recording_id)
+                    if rec is not None and not rec.source_deleted:
+                        all_segs = list(
+                            s.scalars(select(Segment).where(Segment.recording_id == rec.id))
+                        )
+                        if all(sg.status == "published" for sg in all_segs):
+                            stream = s.get(Stream, rec.stream_id)
+                            watcher_pref: bool | None = None
+                            if stream and stream.watcher_id:
+                                watcher = s.get(ChannelWatcher, stream.watcher_id)
+                                if watcher is not None:
+                                    watcher_pref = watcher.auto_delete_source_after_publish
+                            if watcher_pref is None:
+                                settings_row = s.get(_SettingsRow, 1)
+                                delete_flag = bool(
+                                    settings_row
+                                    and settings_row.auto_delete_source_after_publish
+                                )
+                            else:
+                                delete_flag = watcher_pref
+                            if delete_flag:
+                                p = Path(rec.path)
+                                try:
+                                    if p.is_dir():
+                                        shutil.rmtree(p)
+                                    elif p.exists():
+                                        p.unlink()
+                                    rec.source_deleted = True
+                                except OSError:
+                                    logger.exception(
+                                        "auto-delete-source failed for rec %d", rec.id
+                                    )
 
         except Exception as e:
             with self._db.session() as s:

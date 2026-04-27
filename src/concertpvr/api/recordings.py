@@ -5,6 +5,7 @@ from __future__ import annotations
 import datetime as _dt
 import mimetypes
 import re
+import shutil
 from collections.abc import Generator
 from pathlib import Path
 
@@ -15,7 +16,7 @@ from sqlalchemy import select
 from concertpvr.chapters import extract_chapters_json
 from concertpvr.db import Database
 from concertpvr.deps import get_db
-from concertpvr.models import Recording
+from concertpvr.models import Recording, Segment
 from concertpvr.schemas import RecordingRead
 
 router = APIRouter()
@@ -193,3 +194,58 @@ def get_recording_media(
             "accept-ranges": "bytes",
         },
     )
+
+
+@router.post("/recordings/{recording_id}/retry", status_code=200)
+async def retry_vod(
+    recording_id: int,
+    request: Request,
+    db: Database = Depends(get_db),  # noqa: B008
+) -> dict[str, str]:
+    """Re-queue a failed VOD download."""
+    with db.session() as s:
+        rec = s.get(Recording, recording_id)
+        if rec is None:
+            raise HTTPException(status_code=404, detail="recording not found")
+        if rec.status != "vod_failed":
+            raise HTTPException(status_code=409, detail="recording is not in vod_failed state")
+        rec.status = "vod_queued"
+        rec.error = None
+        s.flush()
+        rec_id = rec.id
+
+    await request.app.state.vod_queue.enqueue(rec_id)
+    return {"status": "vod_queued"}
+
+
+@router.delete("/recordings/{recording_id}/source", status_code=204)
+def delete_source(
+    recording_id: int,
+    db: Database = Depends(get_db),  # noqa: B008
+) -> Response:
+    """Delete the source recording file/directory after all segments are published."""
+    with db.session() as s:
+        rec = s.get(Recording, recording_id)
+        if rec is None:
+            raise HTTPException(status_code=404, detail="recording not found")
+        if rec.source_deleted:
+            raise HTTPException(status_code=409, detail="source already deleted")
+
+        segs = list(s.scalars(select(Segment).where(Segment.recording_id == recording_id)))
+        if not segs:
+            raise HTTPException(status_code=409, detail="no segments exist for this recording")
+        if any(seg.status != "published" for seg in segs):
+            raise HTTPException(status_code=409, detail="not all segments are published")
+
+        path = Path(rec.path)
+        try:
+            if path.is_dir():
+                shutil.rmtree(path)
+            elif path.exists():
+                path.unlink()
+        except OSError as exc:
+            raise HTTPException(status_code=500, detail=f"file removal failed: {exc}") from exc
+
+        rec.source_deleted = True
+
+    return Response(status_code=204)
