@@ -28,6 +28,12 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
 
     mark_interrupted_on_startup(app.state.db)
 
+    # VOD recovery: any download stuck in 'vod_downloading' from a prior crash
+    # is real (the queue is empty at startup). Requeue it.
+    from concertpvr.vod_recovery import mark_vod_downloads_interrupted_on_startup
+
+    mark_vod_downloads_interrupted_on_startup(app.state.db)
+
     # Eagerly ensure a session_secret exists so token-issuance is never a race.
     from concertpvr.models import Settings as _SettingsModel
     from concertpvr.session import generate_secret as _generate_secret
@@ -77,6 +83,24 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
         runner_factory=AsyncSubprocessRunner,
         staging_root=cfg.staging_dir,
     )
+
+    # VOD queue setup. Handler wired in Task 7 (when vod_downloader exists).
+    from concertpvr.vod_queue import VodQueue
+    from concertpvr.models import Settings as _SettingsModel
+
+    with app.state.db.session() as _s:
+        _row = _s.get(_SettingsModel, 1)
+        _vod_cap = _row.max_concurrent_vod_downloads if _row else 2
+
+    async def _placeholder_vod_handler(rec_id: int) -> None:
+        # Replaced in Task 7 with real download.
+        raise RuntimeError("VOD handler not yet wired")
+
+    app.state.vod_queue = VodQueue(
+        db=app.state.db, handler=_placeholder_vod_handler, max_concurrent=_vod_cap,
+    )
+    await app.state.vod_queue.start_workers()
+    await app.state.vod_queue.rehydrate_from_db()
 
     app.state.schedule_manager.rehydrate_from_db(app.state.db)
 
@@ -147,6 +171,8 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
     yield
 
     unregister_app()
+    if hasattr(app.state, "vod_queue"):
+        await app.state.vod_queue.stop()
     app.state.scheduler.shutdown(wait=False)
     import asyncio as _asyncio
 
