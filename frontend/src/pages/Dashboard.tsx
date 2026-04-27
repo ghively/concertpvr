@@ -1,5 +1,6 @@
 import { useStreams, useRecordings, useSchedules, useSettings } from "@/lib/query";
 import { StatStrip } from "@/components/StatStrip";
+import { VodQueueStrip } from "@/components/VodQueueStrip";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { LiveProgressBar } from "@/components/LiveProgressBar";
@@ -45,6 +46,10 @@ export default function DashboardPage() {
           { label: "Completed", value: completed, color: "sage" },
         ]}
       />
+
+      <div className="mt-2">
+        <VodQueueStrip />
+      </div>
 
       <div className="grid grid-cols-3 gap-4">
         <div className="col-span-2">
