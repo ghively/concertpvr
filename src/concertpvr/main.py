@@ -307,6 +307,10 @@ def create_app() -> FastAPI:
 
     app.include_router(auth_router, prefix="/api")
 
+    from concertpvr.api import playlists as _playlists_api
+
+    app.include_router(_playlists_api.router)
+
     cfg = Config()
     if cfg.static_dir is not None and cfg.static_dir.is_dir():
         _mount_spa(app, cfg.static_dir)
