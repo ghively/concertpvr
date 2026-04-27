@@ -127,7 +127,7 @@ All additive, all nullable or defaulted, zero drops/renames.
 
 ### New endpoints
 
-**`GET /api/watchers/{id}/backlog?limit=50&offset=0&sort=newest`** — paginated channel-videos listing via yt-dlp flat-extract. Each item carries `status: "downloaded" | "queued" | "not_downloaded"` (left-join against existing Streams by `youtube_id`). Sort options: `newest` (default), `most_viewed`, `longest`, `oldest`.
+**`GET /api/watchers/{id}/backlog?limit=50&offset=0&sort=newest`** — paginated channel-videos listing via yt-dlp flat-extract. Each item carries `status: "downloaded" | "queued" | "not_downloaded"` (left-join against existing Streams by `youtube_id`). Sort options: `newest` (default), `longest`, `oldest`. **`most_viewed` is deferred** — yt-dlp flat-extract doesn't return view counts, and per-video probing of a 1000-video channel is multi-minute work. Revisit in v0.3.3 with an opt-in "Slow refresh (with view counts)" path.
 
 **`POST /api/watchers/{id}/backlog/download`** body `{video_ids: [...]}` — full-probes each, creates Stream + Recording rows, enqueues. Returns 201 with new IDs.
 
@@ -244,7 +244,7 @@ Single URL input → backend probes → modal switches to one of three views:
 
 Two tabs added beyond existing fields:
 - **Settings tab** — two-column layout. Left: "Watching for" (live/VOD checkboxes), VOD filters (title regex, artist regex with named-group helper), segmentation dropdown. Right: library defaults (genres autocomplete from ~30 built-in), automation (auto-publish, extract-from-comments, auto-delete-source toggles), activity stats.
-- **Backlog tab** — multi-select grid of channel videos. Each card: thumbnail with state badge corner (Downloaded / Queued), title, upload age, view count, 🎵 if setlist detected, checkbox + "Download" button per row. Sort chips: Newest (default), Most viewed, Longest, Oldest. Title filter input. Bulk-download button at top when ≥1 selected. "Load 50 more" pagination.
+- **Backlog tab** — multi-select grid of channel videos. Each card: thumbnail with state badge corner (Downloaded / Queued), title, upload age, view count *(when available — see below)*, 🎵 if setlist detected, checkbox + "Download" button per row. Sort chips: Newest (default), Longest, Oldest. *(`Most viewed` deferred to v0.3.3 — see API section above; flat-extract data cost.)* Title filter input. Bulk-download button at top when ≥1 selected. "Load 50 more" pagination.
 
 ### Recordings page
 
