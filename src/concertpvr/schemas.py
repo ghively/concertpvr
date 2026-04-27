@@ -1,9 +1,12 @@
 """Pydantic request/response models."""
 
 import datetime as _dt
+import re
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+SegmentationMode = Literal["chapters", "whole-video", "manual"]
 
 
 class SettingsRead(BaseModel):
@@ -18,6 +21,9 @@ class SettingsRead(BaseModel):
     max_concurrent_recordings: int
     auto_prune_when_full: bool
     yt_dlp_cookies_path: str | None
+    # VOD settings (v0.3)
+    max_concurrent_vod_downloads: int
+    auto_delete_source_after_publish: bool
 
 
 class SettingsPatch(BaseModel):
@@ -35,6 +41,10 @@ class SettingsPatch(BaseModel):
     auto_prune_when_full: bool | None = None
     yt_dlp_cookies_path: str | None = None
 
+    # VOD settings (v0.3)
+    max_concurrent_vod_downloads: int | None = Field(default=None, ge=1, le=8)
+    auto_delete_source_after_publish: bool | None = None
+
     @field_validator("folder_pattern")
     @classmethod
     def _validate_folder_pattern(cls, v: str | None) -> str | None:
@@ -48,11 +58,12 @@ class SettingsPatch(BaseModel):
                 year=2026,
                 date="2026-01-01",
                 title="Title",
+                channel="Channel",
             )
         except (KeyError, IndexError, ValueError) as e:
             raise ValueError(
                 f"folder_pattern uses invalid token: {e}. Allowed tokens: "
-                "{artist} {festival} {venue} {year} {date} {title}"
+                "{artist} {festival} {venue} {year} {date} {title} {channel}"
             ) from e
         return v
 
@@ -68,6 +79,13 @@ class StreamRead(BaseModel):
     channel_name: str
     thumbnail_url: str | None
     added_at: _dt.datetime
+    # VOD metadata (v0.3)
+    original_upload_date: _dt.date | None
+    description: str | None
+    youtube_tags: list[str] | None
+    detected_setlist_text: str | None
+    detected_setlist_source: str | None
+    watcher_id: int | None
 
 
 class StreamCreate(BaseModel):
@@ -116,6 +134,9 @@ class RecordingRead(BaseModel):
     status: Literal["recording", "complete", "failed", "interrupted"]
     is_buffer: bool
     error: str | None
+    # VOD fields (v0.3)
+    auto_publish_after_download: bool
+    source_deleted: bool
 
 
 class ScheduleRead(BaseModel):
@@ -168,6 +189,8 @@ class SegmentRead(BaseModel):
     emby_path: str | None
     poster_path: str | None
     nfo_path: str | None
+    # VOD field (v0.3)
+    genres: str | None
 
 
 class SegmentCreate(BaseModel):
@@ -188,6 +211,8 @@ class SegmentPatch(BaseModel):
     title: str | None = None
     start_s: int | None = None
     end_s: int | None = None
+    # VOD field (v0.3)
+    genres: str | None = None
 
 
 class SetlistRead(BaseModel):
@@ -222,6 +247,22 @@ class PublishOptions(BaseModel):
     year: int | None = None
 
 
+class BacklogItem(BaseModel):
+    youtube_id: str
+    title: str
+    url: str
+    thumbnail_url: str | None
+    upload_date: _dt.date | None
+    duration_s: int | None
+    # view_count is always None: yt-dlp flat-extract doesn't return view counts cheaply
+    view_count: int | None
+    state: Literal["downloaded", "queued", "not_downloaded"]
+
+
+class BacklogDownloadRequest(BaseModel):
+    video_ids: list[str]
+
+
 class ChannelWatcherRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -236,6 +277,16 @@ class ChannelWatcherRead(BaseModel):
     last_polled: _dt.datetime | None
     last_live_id: str | None
     added_at: _dt.datetime
+    # VOD fields (v0.3)
+    watch_live: bool
+    watch_vod_uploads: bool
+    vod_segmentation_mode: SegmentationMode
+    vod_title_filter: str | None
+    vod_artist_regex: str | None
+    auto_publish: bool
+    extract_setlist_from_comments: bool
+    default_genres: str | None
+    auto_delete_source_after_publish: bool | None
 
 
 class ChannelWatcherCreate(BaseModel):
@@ -256,3 +307,41 @@ class ChannelWatcherPatch(BaseModel):
     quality_cap: str | None = None
     retention_days: int | None = None
     enabled: bool | None = None
+    # VOD fields (v0.3)
+    watch_live: bool | None = None
+    watch_vod_uploads: bool | None = None
+    vod_segmentation_mode: SegmentationMode | None = None
+    vod_title_filter: str | None = None
+    vod_artist_regex: str | None = None
+    auto_publish: bool | None = None
+    extract_setlist_from_comments: bool | None = None
+    default_genres: str | None = None
+    auto_delete_source_after_publish: bool | None = None
+
+    @field_validator("vod_title_filter")
+    @classmethod
+    def _validate_vod_title_filter(cls, v: str | None) -> str | None:
+        if v is None or v == "":
+            return v
+        try:
+            re.compile(v)
+        except re.error as e:
+            raise ValueError(f"vod_title_filter: invalid regex: {e}") from e
+        return v
+
+    @field_validator("vod_artist_regex")
+    @classmethod
+    def _validate_vod_artist_regex(cls, v: str | None) -> str | None:
+        if v is None or v == "":
+            return v
+        try:
+            compiled = re.compile(v)
+        except re.error as e:
+            raise ValueError(f"vod_artist_regex: invalid regex: {e}") from e
+        # If the regex has any groups, it must include a named group "artist".
+        if compiled.groups > 0 and "artist" not in compiled.groupindex:
+            raise ValueError(
+                "vod_artist_regex must include a named group (?P<artist>...) "
+                "if it has any capture groups"
+            )
+        return v

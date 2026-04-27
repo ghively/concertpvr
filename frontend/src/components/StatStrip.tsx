@@ -14,7 +14,7 @@ export function StatStrip({
   } as const;
 
   return (
-    <div className="grid grid-cols-4 gap-2 mb-4">
+    <div className="grid gap-2 mb-4" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
       {items.map((item) => (
         <Card key={item.label} className="p-3">
           <div

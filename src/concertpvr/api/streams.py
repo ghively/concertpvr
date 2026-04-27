@@ -2,16 +2,20 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+import datetime as _dt
+from pathlib import Path as _Path
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from concertpvr.buffer import BufferManager
 from concertpvr.db import Database
 from concertpvr.deps import get_broadcaster, get_buffer, get_db, get_pool
+from concertpvr.models import Recording, Stream, WatchSubscription
 from concertpvr.models import Settings as SettingsModel
-from concertpvr.models import Stream, WatchSubscription
 from concertpvr.pool import RecorderPool
+from concertpvr.recording_starter import _resolve_cookies_path
 from concertpvr.schemas import (
     StreamCreate,
     StreamRead,
@@ -27,25 +31,35 @@ router = APIRouter()
 @router.post("/streams", response_model=StreamRead, status_code=status.HTTP_201_CREATED)
 async def create_stream(
     payload: StreamCreate,
+    request: Request,
     db: Database = Depends(get_db),  # noqa: B008
 ) -> Stream:
-    from pathlib import Path as _Path
+    cookies = _resolve_cookies_path(db)
 
-    from concertpvr.models import Settings as _SettingsModel
-
-    with db.session() as _s:
-        _row = _s.get(_SettingsModel, 1)
-        cookies = (
-            _Path(_row.yt_dlp_cookies_path)
-            if _row is not None and _row.yt_dlp_cookies_path
-            else None
-        )
     try:
         info = await probe(payload.url, cookies_path=cookies)
     except ProbeError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
     kind = "live" if info.is_live else "video"
+
+    # For VODs, run setlist detection on description/chapters
+    detected_text: str | None = None
+    detected_source: str | None = None
+    if not info.is_live:
+        from concertpvr.setlist_detector import detect_in_chapters, detect_in_description
+
+        chap = detect_in_chapters(info.chapters)
+        if chap is not None:
+            detected_text = ""
+            detected_source = "chapters"
+        else:
+            desc = detect_in_description(info.description)
+            if desc is not None:
+                detected_text = desc.raw_text
+                detected_source = "description"
+
+    rec_id: int | None = None
 
     with db.session() as s:
         existing = s.scalar(select(Stream).where(Stream.youtube_id == info.youtube_id))
@@ -59,14 +73,42 @@ async def create_stream(
             title=info.title,
             channel_name=info.channel_name,
             thumbnail_url=info.thumbnail_url,
+            original_upload_date=info.original_upload_date if not info.is_live else None,
+            description=info.description if not info.is_live else None,
+            youtube_tags=info.tags if not info.is_live else None,
+            detected_setlist_text=detected_text,
+            detected_setlist_source=detected_source,
         )
         s.add(row)
         try:
             s.flush()
         except IntegrityError as e:
             raise HTTPException(status_code=409, detail="stream already added") from e
+
+        sid = row.id
+
+        # For VODs, also create the Recording row
+        if kind == "video":
+            staging_dir = _Path(request.app.state.config.staging_dir)
+            output_path = staging_dir / f"vod-{info.youtube_id}.mkv"
+            rec = Recording(
+                stream_id=sid,
+                started_at=_dt.datetime.now(_dt.UTC),
+                path=str(output_path),
+                status="vod_queued",
+                is_buffer=False,
+            )
+            s.add(rec)
+            s.flush()
+            rec_id = rec.id
+
         s.refresh(row)
         s.expunge(row)
+
+    # Enqueue AFTER the DB session closes so the row is committed first
+    if kind == "video" and rec_id is not None:
+        await request.app.state.vod_queue.enqueue(rec_id)
+
     return row
 
 

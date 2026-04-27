@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -101,7 +102,12 @@ function WatcherRow({
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <div className="font-medium truncate">{watcher.channel_name}</div>
+        <Link
+          to={`/watchers/${watcher.id}`}
+          className="font-medium truncate hover:text-terracotta transition-colors block"
+        >
+          {watcher.channel_name}
+        </Link>
         <div className="text-xs text-ink-dim font-mono truncate">
           {watcher.channel_url} · last polled {fmtRelative(watcher.last_polled)}
         </div>

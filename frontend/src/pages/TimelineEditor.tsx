@@ -12,6 +12,8 @@ import {
   useUpdateSegment,
   useDeleteSegment,
   usePublishSegment,
+  useStream,
+  useRecording,
 } from "@/lib/query";
 import { recordingMediaUrl, type Segment } from "@/lib/api";
 
@@ -24,6 +26,9 @@ export default function TimelineEditorPage() {
   const [duration, setDuration] = useState(0);
   const [selectedSegmentId, setSelectedSegmentId] = useState<number | null>(null);
   const [setlistOpen, setSetlistOpen] = useState(false);
+
+  const { data: recording } = useRecording(recordingId);
+  const { data: stream } = useStream(recording?.stream_id ?? 0);
 
   const { data: segments = [], isLoading } = useSegments(recordingId);
   const createMut = useCreateSegment(recordingId);
@@ -122,6 +127,7 @@ export default function TimelineEditorPage() {
         recordingId={recordingId}
         open={setlistOpen}
         onOpenChange={setSetlistOpen}
+        defaultText={stream?.detected_setlist_text}
       />
 
       <div className="grid grid-cols-3 gap-4">
@@ -163,6 +169,7 @@ export default function TimelineEditorPage() {
             onPublish={onPublish}
             publishingId={publishingId}
             savingId={savingId}
+            youtubeTags={stream?.youtube_tags}
           />
         </div>
       </div>

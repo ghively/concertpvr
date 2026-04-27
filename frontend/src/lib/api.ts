@@ -42,6 +42,9 @@ export type Settings = {
   max_concurrent_recordings: number;
   auto_prune_when_full: boolean;
   yt_dlp_cookies_path: string | null;
+  // VOD fields (v0.3)
+  max_concurrent_vod_downloads: number;
+  auto_delete_source_after_publish: boolean;
 };
 
 export type SettingsPatch = Partial<Settings>;
@@ -64,6 +67,13 @@ export type Stream = {
   channel_name: string;
   thumbnail_url: string | null;
   added_at: string;
+  // VOD metadata (v0.3)
+  description?: string | null;
+  upload_date?: string | null;
+  duration_s?: number | null;
+  youtube_tags?: string[] | null;
+  detected_setlist_text?: string | null;
+  detected_setlist_source?: string | null;
 };
 
 export const streamsApi = {
@@ -94,7 +104,14 @@ export const watchApi = {
 
 // ── Recordings ──────────────────────────────────────────────────────────────
 
-export type RecordingStatus = "recording" | "complete" | "failed" | "interrupted";
+export type RecordingStatus =
+  | "recording"
+  | "complete"
+  | "failed"
+  | "interrupted"
+  | "vod_queued"
+  | "vod_downloading"
+  | "vod_failed";
 
 export type Recording = {
   id: number;
@@ -110,6 +127,10 @@ export type Recording = {
   status: RecordingStatus;
   is_buffer: boolean;
   error: string | null;
+  /** 0–100 download progress for vod_downloading */
+  vod_pct?: number | null;
+  /** seconds remaining for vod_downloading */
+  vod_eta_s?: number | null;
 };
 
 export const recordingsApi = {
@@ -138,6 +159,7 @@ export type Segment = {
   emby_path: string | null;
   poster_path: string | null;
   nfo_path: string | null;
+  genres?: string | null;
 };
 
 export type SegmentCreate = {
@@ -147,6 +169,7 @@ export type SegmentCreate = {
   start_s: number;
   end_s: number;
   source?: SegmentSource;
+  genres?: string | null;
 };
 
 export type SegmentPatch = {
@@ -154,6 +177,7 @@ export type SegmentPatch = {
   title?: string | null;
   start_s?: number;
   end_s?: number;
+  genres?: string | null;
 };
 
 export type PublishOptions = {
@@ -281,6 +305,8 @@ export const schedulesApi = {
 
 // ── Channel Watchers ────────────────────────────────────────────────────────
 
+export type VodSegmentationMode = "chapters" | "whole-video" | "manual";
+
 export type ChannelWatcher = {
   id: number;
   channel_url: string;
@@ -293,6 +319,16 @@ export type ChannelWatcher = {
   last_polled: string | null;
   last_live_id: string | null;
   added_at: string;
+  // VOD fields (v0.3)
+  watch_live: boolean;
+  watch_vod_uploads: boolean;
+  vod_title_filter: string | null;
+  vod_artist_regex: string | null;
+  vod_segmentation_mode: VodSegmentationMode;
+  default_genres: string | null;
+  auto_publish: boolean;
+  extract_setlist_from_comments: boolean;
+  auto_delete_source_after_publish: boolean | null;
 };
 
 export type ChannelWatcherCreate = {
@@ -300,6 +336,9 @@ export type ChannelWatcherCreate = {
   title_filter?: string | null;
   quality_cap?: string | null;
   retention_days?: number;
+  watch_live?: boolean;
+  watch_vod_uploads?: boolean;
+  auto_publish?: boolean;
 };
 
 export type ChannelWatcherPatch = {
@@ -307,12 +346,82 @@ export type ChannelWatcherPatch = {
   quality_cap?: string | null;
   retention_days?: number;
   enabled?: boolean;
+  // VOD fields (v0.3)
+  watch_live?: boolean;
+  watch_vod_uploads?: boolean;
+  vod_title_filter?: string | null;
+  vod_artist_regex?: string | null;
+  vod_segmentation_mode?: VodSegmentationMode;
+  default_genres?: string | null;
+  auto_publish?: boolean;
+  extract_setlist_from_comments?: boolean;
+  auto_delete_source_after_publish?: boolean | null;
 };
 
 export const watchersApi = {
   list: () => api.get<ChannelWatcher[]>("/api/channel-watchers"),
+  get: (id: number) => api.get<ChannelWatcher>(`/api/channel-watchers/${id}`),
   create: (p: ChannelWatcherCreate) => api.post<ChannelWatcher>("/api/channel-watchers", p),
   patch: (id: number, p: ChannelWatcherPatch) =>
     api.patch<ChannelWatcher>(`/api/channel-watchers/${id}`, p),
   delete: (id: number) => api.delete<void>(`/api/channel-watchers/${id}`),
+};
+
+// ── Backlog ──────────────────────────────────────────────────────────────────
+
+export type BacklogItemState = "downloaded" | "queued" | "not_downloaded";
+
+export type BacklogItem = {
+  youtube_id: string;
+  title: string;
+  url: string;
+  thumbnail_url: string | null;
+  upload_date: string | null;
+  duration_s: number | null;
+  view_count: number | null;
+  state: BacklogItemState;
+};
+
+// ── Smart-paste / probe response shapes ─────────────────────────────────────
+
+export type ProbeChannelResult = {
+  type: "channel";
+  channel_name: string;
+  channel_id: string;
+  url: string;
+};
+
+export type ProbePlaylistItem = {
+  video_id: string;
+  title: string;
+  channel: string;
+  thumbnail_url: string | null;
+  duration_s: number | null;
+};
+
+export type ProbePlaylistResult = {
+  type: "playlist";
+  playlist_id: string;
+  playlist_title: string;
+  count: number;
+  items: ProbePlaylistItem[];
+};
+
+// A Stream-like result (kind=live or kind=video) is just a Stream object.
+// Backend may also return detected_setlist_source on the object.
+export type ProbeStreamResult = Stream & {
+  detected_setlist_source?: string | null;
+};
+
+export type ProbeResult = ProbeStreamResult | ProbeChannelResult | ProbePlaylistResult;
+
+// ── Playlist ingest ──────────────────────────────────────────────────────────
+
+export type PlaylistIngestConfirm = {
+  video_ids: string[];
+};
+
+export const playlistApi = {
+  confirm: (p: PlaylistIngestConfirm) =>
+    api.post<{ queued: number }>("/api/playlists/ingest/confirm", p),
 };

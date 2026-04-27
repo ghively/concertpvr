@@ -131,6 +131,19 @@ export default function SettingsPage() {
           />
         </Labeled>
         <Labeled
+          label="Max concurrent VOD downloads"
+          help="VOD queue capacity (separate from live)."
+        >
+          <Input
+            type="number"
+            className="font-mono"
+            min={1}
+            max={8}
+            value={merged.max_concurrent_vod_downloads ?? 2}
+            onChange={(e) => field("max_concurrent_vod_downloads")(Number(e.target.value))}
+          />
+        </Labeled>
+        <Labeled
           label="Auto-prune buffer when disk full"
           help="When the buffer drive drops below 5% free, prune oldest fragments across all streams (ignores per-stream retention)."
         >
@@ -145,6 +158,25 @@ export default function SettingsPage() {
               className={cn(
                 "absolute top-0.5 w-4 h-4 rounded-full transition-all",
                 merged.auto_prune_when_full ? "left-[18px] bg-sage" : "left-0.5 bg-ink-dim",
+              )}
+            />
+          </button>
+        </Labeled>
+        <Labeled
+          label="Auto-delete source after publish"
+          help="When all segments on a recording are published, source file is removed. You won't be able to re-cut."
+        >
+          <button
+            onClick={() => field("auto_delete_source_after_publish")(!merged.auto_delete_source_after_publish)}
+            className={cn(
+              "w-9 h-5 rounded-full relative transition-colors",
+              merged.auto_delete_source_after_publish ? "bg-sage/30" : "bg-surface-3",
+            )}
+          >
+            <span
+              className={cn(
+                "absolute top-0.5 w-4 h-4 rounded-full transition-all",
+                merged.auto_delete_source_after_publish ? "left-[18px] bg-sage" : "left-0.5 bg-ink-dim",
               )}
             />
           </button>

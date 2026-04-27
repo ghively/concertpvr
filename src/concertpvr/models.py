@@ -11,7 +11,8 @@ from __future__ import annotations
 
 import datetime as _dt
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
+import sqlalchemy as sa
+from sqlalchemy import JSON, Boolean, Date, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -51,6 +52,14 @@ class Settings(Base):
     password_hash: Mapped[str | None] = mapped_column(String, nullable=True)
     session_secret: Mapped[str | None] = mapped_column(String, nullable=True)
 
+    # VOD settings (v0.3)
+    max_concurrent_vod_downloads: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=2, server_default="2"
+    )
+    auto_delete_source_after_publish: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=sa.false()
+    )
+
 
 class Stream(Base):
     __tablename__ = "streams"
@@ -64,6 +73,16 @@ class Stream(Base):
     thumbnail_url: Mapped[str | None] = mapped_column(String, nullable=True)
     added_at: Mapped[_dt.datetime] = mapped_column(
         DateTime, nullable=False, default=lambda: _dt.datetime.now(_dt.UTC)
+    )
+
+    # VOD metadata (v0.3)
+    original_upload_date: Mapped[_dt.date | None] = mapped_column(Date, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    youtube_tags: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    detected_setlist_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    detected_setlist_source: Mapped[str | None] = mapped_column(String, nullable=True)
+    watcher_id: Mapped[int | None] = mapped_column(
+        ForeignKey("channel_watchers.id", ondelete="SET NULL"), nullable=True, index=True
     )
 
     subscription = relationship(
@@ -107,6 +126,14 @@ class Recording(Base):
     error: Mapped[str | None] = mapped_column(String, nullable=True)
     raw_chapters_json: Mapped[str | None] = mapped_column(String, nullable=True)
 
+    # VOD fields (v0.3)
+    auto_publish_after_download: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=sa.false()
+    )
+    source_deleted: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=sa.false()
+    )
+
     stream = relationship("Stream", back_populates="recordings")
 
 
@@ -148,6 +175,9 @@ class Segment(Base):
     poster_path: Mapped[str | None] = mapped_column(String, nullable=True)
     nfo_path: Mapped[str | None] = mapped_column(String, nullable=True)
 
+    # VOD field (v0.3)
+    genres: Mapped[str | None] = mapped_column(String, nullable=True)
+
     recording = relationship("Recording")
 
 
@@ -166,6 +196,8 @@ class Setlist(Base):
 
 
 class ChannelWatcher(Base):
+    """Channel watcher — unified live + VOD entity."""
+
     __tablename__ = "channel_watchers"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -181,3 +213,24 @@ class ChannelWatcher(Base):
     added_at: Mapped[_dt.datetime] = mapped_column(
         DateTime, nullable=False, default=lambda: _dt.datetime.now(_dt.UTC)
     )
+
+    # VOD fields (v0.3)
+    watch_live: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default=sa.true()
+    )
+    watch_vod_uploads: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=sa.false()
+    )
+    vod_segmentation_mode: Mapped[str] = mapped_column(
+        String, nullable=False, default="chapters", server_default="chapters"
+    )
+    vod_title_filter: Mapped[str | None] = mapped_column(String, nullable=True)
+    vod_artist_regex: Mapped[str | None] = mapped_column(String, nullable=True)
+    auto_publish: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=sa.false()
+    )
+    extract_setlist_from_comments: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=sa.false()
+    )
+    default_genres: Mapped[str | None] = mapped_column(String, nullable=True)
+    auto_delete_source_after_publish: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
