@@ -2,11 +2,13 @@ import datetime as dt
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from concertpvr.backlog_cache import fetch_full_channel, is_stale
 from concertpvr.db import Database
-from concertpvr.models import Base, ChannelBacklogCache, ChannelWatcher
+from concertpvr.main import create_app
+from concertpvr.models import Base, ChannelBacklogCache, ChannelWatcher, Recording, Stream
 from concertpvr.ytdlp_channels import BroadcastInfo
 
 
@@ -23,6 +25,73 @@ def _seed_watcher(db: Database, channel_url: str = "https://www.youtube.com/@tes
         s.add(w)
         s.flush()
         return w.id
+
+
+@pytest.fixture
+def client(tmp_path, monkeypatch):
+    monkeypatch.setenv("CPVR_DATA_DIR", str(tmp_path))
+    with TestClient(create_app()) as c:
+        yield c
+
+
+def test_cancel_backlog_downloads(client: TestClient) -> None:
+    db = client.app.state.db
+
+    with db.session() as s:
+        w = ChannelWatcher(channel_url="https://www.youtube.com/@cancel_test", channel_name="Test")
+        s.add(w)
+        s.flush()
+        watcher_id = w.id
+
+        st1 = Stream(
+            kind="video",
+            youtube_id="cancel-vid-1",
+            url="https://cancel-vid-1",
+            title="Cancel 1",
+            channel_name="Test",
+        )
+        st2 = Stream(
+            kind="video",
+            youtube_id="cancel-vid-2",
+            url="https://cancel-vid-2",
+            title="Cancel 2",
+            channel_name="Test",
+        )
+        s.add(st1)
+        s.add(st2)
+        s.flush()
+
+        rec1 = Recording(
+            stream_id=st1.id, started_at=dt.datetime.now(dt.UTC), path="tmp", status="vod_queued"
+        )
+        rec2 = Recording(
+            stream_id=st2.id, started_at=dt.datetime.now(dt.UTC), path="tmp", status="complete"
+        )
+        s.add(rec1)
+        s.add(rec2)
+        s.flush()
+
+    # Needs a mock for cancel_by_youtube_id
+    from unittest.mock import AsyncMock
+
+    client.app.state.vod_queue.cancel_by_youtube_id = AsyncMock()
+
+    r = client.post(
+        f"/api/channel-watchers/{watcher_id}/backlog/cancel",
+        json={"video_ids": ["cancel-vid-1", "cancel-vid-2"]},
+    )
+    assert r.status_code == 200
+    assert r.json() == {"cancelled": ["cancel-vid-1"]}
+
+    with db.session() as s:
+        # st1 and rec1 should be deleted because rec1 was queued
+        assert s.scalar(select(Recording).where(Recording.status == "vod_queued")) is None
+        assert s.scalar(select(Stream).where(Stream.youtube_id == "cancel-vid-1")) is None
+        # st2 and rec2 should remain because rec2 was complete
+        assert s.scalar(select(Recording).where(Recording.status == "complete")) is not None
+        assert s.scalar(select(Stream).where(Stream.youtube_id == "cancel-vid-2")) is not None
+
+    client.app.state.vod_queue.cancel_by_youtube_id.assert_awaited_once_with("cancel-vid-1")
 
 
 @pytest.mark.asyncio

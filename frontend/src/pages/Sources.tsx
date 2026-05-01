@@ -16,6 +16,7 @@ import { LiveProgressBar } from "@/components/LiveProgressBar";
 import { SmartPasteModal } from "@/components/SmartPasteModal";
 import { COMMON_GENRES } from "@/lib/genres";
 import type { Stream, Recording } from "@/lib/api";
+import { STATUS_META } from "@/lib/badges";
 
 // ── Kind badge ────────────────────────────────────────────────────────────────
 
@@ -51,28 +52,27 @@ function StatusBadge({
   const latest = streamRecs[0];
 
   if (stream.kind === "live") {
-    return enabled ? (
-      <Badge color="buffering">Buffering</Badge>
-    ) : (
-      <Badge color="neutral">Idle</Badge>
-    );
+    if (!enabled) return <Badge color="neutral">Idle</Badge>;
+    if (!latest) return <Badge color="buffering">Buffering</Badge>;
+    const status = STATUS_META[latest.status];
+    return status ? <Badge color={status.color}>{status.label}</Badge> : <Badge color="neutral">{latest.status}</Badge>;
   }
 
   // video kind
-  if (!latest) return <Badge color="neutral">Queued</Badge>;
-  if (latest.status === "recording") {
+  if (!latest) return <Badge color="scheduled">Queued</Badge>;
+  const status = STATUS_META[latest.status];
+  if (latest.status === "vod_downloading") {
     const pct =
       latest.size_bytes && latest.duration_s && latest.duration_s > 0
         ? Math.min(100, Math.round((latest.size_bytes / (latest.duration_s * 2_000_000)) * 100))
         : null;
     return (
-      <Badge color="live">
+      <Badge color="buffering">
         {pct !== null ? `Downloading ${pct}%` : "Downloading"}
       </Badge>
     );
   }
-  if (latest.status === "complete") return <Badge color="done">Complete</Badge>;
-  if (latest.status === "failed") return <Badge color="failed">Failed</Badge>;
+  if (status) return <Badge color={status.color}>{status.label}</Badge>;
   return <Badge color="scheduled">Queued</Badge>;
 }
 

@@ -176,6 +176,7 @@ export function BacklogBrowser({ watcherId }: { watcherId: number }) {
   const [titleFilter, setTitleFilter] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [allPages, setAllPages] = useState<BacklogItem[][]>([]);
+  const [probeViews, setProbeViews] = useState(false);
   const qc = useQueryClient();
 
   // --- Cache status + polling ---
@@ -235,6 +236,8 @@ export function BacklogBrowser({ watcherId }: { watcherId: number }) {
   };
 
   // User-triggered only — backlog browse never auto-downloads.
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
   const handleBulkDownload = async () => {
     if (selected.size === 0) return;
     try {
@@ -243,8 +246,8 @@ export function BacklogBrowser({ watcherId }: { watcherId: number }) {
       });
       setSelected(new Set());
       qc.invalidateQueries({ queryKey: watchersKeys.backlog(watcherId, sort, offset) });
-    } catch {
-      // silently fail for now — production would show a toast
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "Action failed");
     }
   };
 
@@ -254,8 +257,8 @@ export function BacklogBrowser({ watcherId }: { watcherId: number }) {
         video_ids: [youtubeId],
       });
       qc.invalidateQueries({ queryKey: watchersKeys.backlog(watcherId, sort, offset) });
-    } catch {
-      // silently fail
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "Action failed");
     }
   };
 
@@ -265,13 +268,13 @@ export function BacklogBrowser({ watcherId }: { watcherId: number }) {
         video_ids: [youtubeId],
       });
       qc.invalidateQueries({ queryKey: watchersKeys.backlog(watcherId, sort, offset) });
-    } catch {
-      // silently fail
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "Action failed");
     }
   };
 
   const handleRefresh = () => {
-    refreshMutation.mutate();
+    refreshMutation.mutate({ probeViews });
   };
 
   // --- Cache state machine banners ---
@@ -288,13 +291,23 @@ export function BacklogBrowser({ watcherId }: { watcherId: number }) {
           <p className="text-[11px] text-ink-faint">
             Takes ~30s for large channels.
           </p>
-          <Button
-            variant="primary"
-            onClick={handleRefresh}
-            disabled={refreshMutation.isPending}
-          >
-            {refreshMutation.isPending ? "Starting…" : "Refresh"}
-          </Button>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-1 text-[11px] text-ink-dim">
+              <input
+                type="checkbox"
+                checked={probeViews}
+                onChange={(e) => setProbeViews(e.target.checked)}
+              />
+              Include view counts (slower)
+            </label>
+            <Button
+              variant="primary"
+              onClick={handleRefresh}
+              disabled={refreshMutation.isPending}
+            >
+              {refreshMutation.isPending ? "Starting…" : "Refresh"}
+            </Button>
+          </div>
         </div>
       );
     }
@@ -352,7 +365,7 @@ export function BacklogBrowser({ watcherId }: { watcherId: number }) {
 
     if (cacheState.status === "complete") {
       return (
-        <div className="flex items-center gap-2 mb-3 text-[11px] text-ink-faint">
+        <div className="flex items-center gap-2 mb-3 text-[11px] text-ink-faint flex-wrap">
           <span>Last updated {fmtRelativeDate(cacheState.fetched_at)}</span>
           {cacheState.total_count > 0 && (
             <span className="text-ink-dim">· {cacheState.total_count.toLocaleString()} videos</span>
@@ -361,6 +374,14 @@ export function BacklogBrowser({ watcherId }: { watcherId: number }) {
           {cacheState.stale && (
             <span className="text-amber text-[10px]">Stale — refresh recommended</span>
           )}
+          <label className="flex items-center gap-1 text-[11px] text-ink-dim cursor-pointer mr-2">
+            <input
+              type="checkbox"
+              checked={probeViews}
+              onChange={(e) => setProbeViews(e.target.checked)}
+            />
+            Include view counts (slower)
+          </label>
           <button
             onClick={handleRefresh}
             disabled={refreshMutation.isPending}
@@ -383,6 +404,12 @@ export function BacklogBrowser({ watcherId }: { watcherId: number }) {
 
   return (
     <div>
+      {errorMsg && (
+        <div className="bg-red-500/10 border border-red-500/20 text-red-600 px-4 py-2 rounded text-sm flex justify-between items-center mb-4">
+          <span>{errorMsg}</span>
+          <button onClick={() => setErrorMsg(null)} className="text-red-600 hover:text-red-800">&times;</button>
+        </div>
+      )}
       {/* Bulk-download bar (sticky) — User-triggered only — backlog browse never auto-downloads. */}
       {selected.size > 0 && (
         <div className="sticky top-0 z-10 bg-surface-1 border border-border rounded px-3 py-2 flex items-center gap-2 mb-3 shadow-md">

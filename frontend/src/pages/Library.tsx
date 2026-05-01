@@ -12,9 +12,10 @@ const YEAR_OPTIONS = ["All", "2025", "2024", "2023", "Earlier"] as const;
 type YearFilter = (typeof YEAR_OPTIONS)[number];
 
 function segmentYear(seg: Segment): number | null {
-  // Try metadata.year if it exists (future extension), then fall back to started_at
-  const meta = (seg as Segment & { metadata?: { year?: number } }).metadata;
-  if (meta?.year) return meta.year;
+  if (seg.original_upload_date) {
+    const y = parseInt(seg.original_upload_date.substring(0, 4), 10);
+    if (!isNaN(y)) return y;
+  }
   return null;
 }
 
@@ -29,9 +30,8 @@ function matchesYear(seg: Segment, yearFilter: YearFilter): boolean {
 // ── Genre helpers ─────────────────────────────────────────────────────────────
 
 function segmentGenres(seg: Segment): string[] {
-  const extended = seg as Segment & { genres?: string };
-  if (!extended.genres) return [];
-  return extended.genres
+  if (!seg.genres) return [];
+  return seg.genres
     .split(",")
     .map((g) => g.trim())
     .filter(Boolean);

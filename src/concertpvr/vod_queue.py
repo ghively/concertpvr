@@ -58,6 +58,9 @@ class VodQueue:
                 t.cancel()
         self._workers.clear()
 
+    async def cancel_by_youtube_id(self, youtube_id: str) -> None:
+        pass
+
     async def wait_for_idle(self) -> None:
         await self._queue.join()
 

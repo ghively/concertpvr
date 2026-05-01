@@ -1,7 +1,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-type BadgeColor = "neutral" | "live" | "buffering" | "scheduled" | "done" | "failed";
+export type BadgeColor = "neutral" | "live" | "buffering" | "scheduled" | "done" | "failed";
 
 const palette: Record<BadgeColor, string> = {
   neutral: "bg-surface-3 text-ink-dim",

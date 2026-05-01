@@ -311,7 +311,10 @@ export function useBacklogStatus(watcherId: number, polling: boolean) {
 export function useRefreshBacklog(watcherId: number) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => watchersApi.refreshBacklog(watcherId),
+    mutationFn: (opts?: { probeViews?: boolean }) => {
+      const qp = opts?.probeViews ? "?probe_views=true" : "";
+      return api.post(`/api/channel-watchers/${watcherId}/backlog/refresh${qp}`, {});
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["backlog-status", watcherId] });
       qc.invalidateQueries({ queryKey: ["backlog", watcherId] });

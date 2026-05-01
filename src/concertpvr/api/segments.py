@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 
 from concertpvr.db import Database
 from concertpvr.deps import get_db
@@ -18,11 +19,18 @@ from concertpvr.schemas import (
 router = APIRouter()
 
 
+def _to_read(seg: Segment) -> SegmentRead:
+    read = SegmentRead.model_validate(seg)
+    if seg.recording and seg.recording.stream:
+        read.original_upload_date = seg.recording.stream.original_upload_date
+    return read
+
+
 @router.post("/segments", response_model=SegmentRead, status_code=status.HTTP_201_CREATED)
 def create_segment(
     payload: SegmentCreate,
     db: Database = Depends(get_db),  # noqa: B008
-) -> Segment:
+) -> SegmentRead:
     if payload.end_s <= payload.start_s:
         raise HTTPException(status_code=400, detail="end_s must be after start_s")
     with db.session() as s:
@@ -40,9 +48,16 @@ def create_segment(
         )
         s.add(seg)
         s.flush()
-        s.refresh(seg)
-        s.expunge(seg)
-    return seg
+        # eager load for the response
+        seg_id = seg.id
+        seg_loaded = s.scalar(
+            select(Segment)
+            .where(Segment.id == seg_id)
+            .options(joinedload(Segment.recording).joinedload(Recording.stream))
+        )
+        if seg_loaded is None:
+            raise HTTPException(status_code=404, detail="segment not found after creation")
+        return _to_read(seg_loaded)
 
 
 @router.get("/segments", response_model=list[SegmentRead])
@@ -52,9 +67,13 @@ def list_segments(
     limit: int | None = Query(None, ge=1, le=10000),  # noqa: B008
     offset: int = Query(0, ge=0),  # noqa: B008
     db: Database = Depends(get_db),  # noqa: B008
-) -> list[Segment]:
+) -> list[SegmentRead]:
     with db.session() as s:
-        stmt = select(Segment).order_by(Segment.start_s.asc())
+        stmt = (
+            select(Segment)
+            .order_by(Segment.start_s.asc())
+            .options(joinedload(Segment.recording).joinedload(Recording.stream))
+        )
         if recording_id is not None:
             stmt = stmt.where(Segment.recording_id == recording_id)
         if status is not None:
@@ -64,19 +83,20 @@ def list_segments(
         elif offset > 0:
             stmt = stmt.offset(offset)
         rows = list(s.scalars(stmt))
-        for r in rows:
-            s.expunge(r)
-    return rows
+        return [_to_read(r) for r in rows]
 
 
 @router.get("/segments/{segment_id}", response_model=SegmentRead)
-def get_segment(segment_id: int, db: Database = Depends(get_db)) -> Segment:  # noqa: B008
+def get_segment(segment_id: int, db: Database = Depends(get_db)) -> SegmentRead:  # noqa: B008
     with db.session() as s:
-        row = s.get(Segment, segment_id)
+        row = s.scalar(
+            select(Segment)
+            .where(Segment.id == segment_id)
+            .options(joinedload(Segment.recording).joinedload(Recording.stream))
+        )
         if row is None:
             raise HTTPException(status_code=404, detail="segment not found")
-        s.expunge(row)
-    return row
+        return _to_read(row)
 
 
 @router.patch("/segments/{segment_id}", response_model=SegmentRead)
@@ -116,7 +136,7 @@ async def publish_segment(
     options: PublishOptions,
     request: Request,
     db: Database = Depends(get_db),  # noqa: B008
-) -> Segment:
+) -> SegmentRead:
     publisher = request.app.state.publisher_factory()
     try:
         await publisher.publish(
@@ -130,8 +150,11 @@ async def publish_segment(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
     with db.session() as s:
-        seg = s.get(Segment, segment_id)
+        seg = s.scalar(
+            select(Segment)
+            .where(Segment.id == segment_id)
+            .options(joinedload(Segment.recording).joinedload(Recording.stream))
+        )
         if seg is None:
             raise HTTPException(status_code=404, detail="segment not found post-publish")
-        s.expunge(seg)
-    return seg
+        return _to_read(seg)

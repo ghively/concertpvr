@@ -1,5 +1,49 @@
 # Changelog
 
+## v0.3.3 — 2026-04-27
+
+Bug sweep + Most viewed backlog sort.
+
+### Fixed (audit findings on v0.3.2)
+
+- VOD `auto_publish_after_download` now wires through to the publisher
+  on `complete` transitions. The toggle was previously persisted but
+  inert.
+- Frontend↔backend field-name drift: `Stream.upload_date` aligned to
+  backend's `original_upload_date`; `ProbePlaylistItem` aligned to
+  `youtube_id`/`channel_name` (was `video_id`/`channel`). The
+  PostDownloadReview screen and the playlist-paste selection flow now
+  function correctly.
+- Sources page VOD rows show correct status (was checking impossible
+  `recording`/`failed` statuses for `kind="video"`).
+- Recordings page drops the dead `failed` filter chip (live path emits
+  only `complete`/`interrupted`).
+- Library year filter actually filters by year — `original_upload_date`
+  now exposed on `SegmentRead`.
+- Backlog Cancel button — endpoint implemented (was 404ing silently).
+- Three silent-fail catches in BacklogBrowser now surface errors via
+  toast.
+- ffprobe failures in `_vod_handler` now log instead of swallow.
+- Setlist comments-detection now runs on URL paste when the
+  corresponding watcher has the toggle on (was watcher-poller-only).
+
+### Added
+
+- **Most viewed** backlog sort chip (deferred from v0.3.2). Requires an
+  opt-in: tick "Include view counts (slower)" before clicking Refresh.
+  Backend runs a per-video probe loop in batches of 20 with progress
+  reporting. Videos with no public view count sort last.
+
+### Refactored
+
+- Status badges consolidated into a shared `STATUS_META` mapping —
+  eliminates parallel `STATUS_COLOR` / `STATUS_BADGE` shapes that
+  needed updating in two places.
+
+### No schema changes
+
+Migration count stays at 9 (0001…0009).
+
 ## v0.3.2 — 2026-04-27
 
 VOD parity pass. Closes the v0.3 spec gap that "VOD downloads is a peer

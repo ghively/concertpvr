@@ -5,19 +5,12 @@ import { Badge } from "@/components/ui/badge";
 import { useRecordings, useStreams } from "@/lib/query";
 import type { Recording, RecordingStatus, Stream } from "@/lib/api";
 import { cn } from "@/lib/utils";
-
-const STATUS_COLOR: Record<string, "live" | "done" | "failed" | "neutral" | "buffering" | "scheduled"> = {
-  recording: "live",
-  complete: "done",
-  failed: "failed",
-  interrupted: "failed",
-};
+import { STATUS_META } from "@/lib/badges";
 
 const ALL_FILTER_STATUSES: Array<{ value: RecordingStatus | "all"; label: string }> = [
   { value: "all", label: "All" },
   { value: "recording", label: "Live" },
   { value: "complete", label: "Complete" },
-  { value: "failed", label: "Failed" },
   { value: "interrupted", label: "Interrupted" },
 ];
 
@@ -117,7 +110,9 @@ export default function RecordingsPage() {
                       <span>{stream?.channel_name ?? "—"}</span>
                       <span>{fmtDuration(r.duration_s)}</span>
                       <span>{fmtBytes(r.size_bytes)}</span>
-                      <Badge color={STATUS_COLOR[r.status] ?? "neutral"}>{r.status}</Badge>
+                      <Badge color={STATUS_META[r.status]?.color ?? "neutral"}>
+                        {STATUS_META[r.status]?.label ?? r.status}
+                      </Badge>
                       {r.is_buffer && <Badge color="buffering">buffer</Badge>}
                     </div>
                   </div>

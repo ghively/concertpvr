@@ -5,13 +5,7 @@ import { Button } from "@/components/ui/button";
 import { VodProgressBar } from "@/components/VodProgressBar";
 import type { Recording, Stream } from "@/lib/api";
 import { useRetryRecording, useDeleteRecordingSource } from "@/lib/query";
-
-const STATUS_BADGE: Record<string, { color: string; label: string }> = {
-  vod_queued: { color: "scheduled", label: "Queued" },
-  vod_downloading: { color: "buffering", label: "Downloading" },
-  complete: { color: "done", label: "Complete" },
-  vod_failed: { color: "failed", label: "Failed" },
-};
+import { STATUS_META } from "@/lib/badges";
 
 interface VodRecordingRowProps {
   recording: Recording;
@@ -30,7 +24,7 @@ interface VodRecordingRowProps {
 export function VodRecordingRow({ recording: r, stream: s }: VodRecordingRowProps) {
   const retryMut = useRetryRecording();
   const deleteSourceMut = useDeleteRecordingSource();
-  const status = STATUS_BADGE[r.status] ?? { color: "neutral", label: r.status };
+  const status = STATUS_META[r.status] ?? { color: "neutral", label: r.status };
 
   return (
     <Card className="flex items-start gap-4">
@@ -46,7 +40,7 @@ export function VodRecordingRow({ recording: r, stream: s }: VodRecordingRowProp
         <div className="font-medium truncate">{s?.title ?? `Recording ${r.id}`}</div>
         <div className="text-xs text-ink-dim">{s?.channel_name}</div>
         <div className="mt-2 flex items-center gap-2">
-          <Badge color={status.color as any}>{status.label}</Badge>
+          <Badge color={status.color}>{status.label}</Badge>
           <span className="text-xs text-ink-faint">
             {new Date(r.started_at).toLocaleString()}
           </span>

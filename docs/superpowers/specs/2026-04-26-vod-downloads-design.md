@@ -127,9 +127,11 @@ All additive, all nullable or defaulted, zero drops/renames.
 
 ### New endpoints
 
-**`GET /api/watchers/{id}/backlog?limit=50&offset=0&sort=newest`** — paginated channel-videos listing via yt-dlp flat-extract. Each item carries `status: "downloaded" | "queued" | "not_downloaded"` (left-join against existing Streams by `youtube_id`). Sort options: `newest` (default), `longest`, `oldest`. **`most_viewed` is deferred** — yt-dlp flat-extract doesn't return view counts, and per-video probing of a 1000-video channel is multi-minute work. Revisit in v0.3.3 with an opt-in "Slow refresh (with view counts)" path.
+**`GET /api/watchers/{id}/backlog?limit=50&offset=0&sort=newest`** — paginated channel-videos listing via yt-dlp flat-extract. Each item carries `status: "downloaded" | "queued" | "not_downloaded"` (left-join against existing Streams by `youtube_id`). Sort options: `newest` (default), `longest`, `oldest`, `most_viewed` (requires opt-in slow refresh — see implementation notes).
 
 **`POST /api/watchers/{id}/backlog/download`** body `{video_ids: [...]}` — full-probes each, creates Stream + Recording rows, enqueues. Returns 201 with new IDs.
+
+**Implementation note (`POST /api/channel-watchers/{id}/backlog/refresh`):** accepts `?probe_views=true` to opt-in to slow refresh. Flat-extract runs first, then a per-video loop queries `view_count` which can take several minutes for large channels.
 
 **`POST /api/playlists/ingest`** body `{url}` — probe-only; returns playlist metadata + items list with `is_already_known` flag per video. Capped at 500 items via yt-dlp `playlistend=500`; UI shows "Showing first 500 of N" if truncated.
 
@@ -244,12 +246,12 @@ Single URL input → backend probes → modal switches to one of three views:
 
 Two tabs added beyond existing fields:
 - **Settings tab** — two-column layout. Left: "Watching for" (live/VOD checkboxes), VOD filters (title regex, artist regex with named-group helper), segmentation dropdown. Right: library defaults (genres autocomplete from ~30 built-in), automation (auto-publish, extract-from-comments, auto-delete-source toggles), activity stats.
-- **Backlog tab** — multi-select grid of channel videos. Each card: thumbnail with state badge corner (Downloaded / Queued), title, upload age, view count *(when available — see below)*, 🎵 if setlist detected, checkbox + "Download" button per row. Sort chips: Newest (default), Longest, Oldest. *(`Most viewed` deferred to v0.3.3 — see API section above; flat-extract data cost.)* Title filter input. Bulk-download button at top when ≥1 selected. "Load 50 more" pagination.
+- **Backlog tab** — multi-select grid of channel videos. Each card: thumbnail with state badge corner (Downloaded / Queued), title, upload age, view count *(when available — see below)*, 🎵 if setlist detected, checkbox + "Download" button per row. Sort chips: Newest (default), Most viewed, Longest, Oldest. Title filter input. Bulk-download button at top when ≥1 selected. "Load 50 more" pagination.
 
 ### Recordings page
 
 - Status filter chips include `vod_queued`, `vod_downloading`, `vod_failed`.
-- VOD recordings show determinate progress (`pct` + `eta_s`) using existing `LiveProgressBar` with `mode="determinate"` prop.
+- VOD recordings render a separate `VodProgressBar` component (split from `LiveProgressBar` in v0.3.2 for clarity — different lifecycle).
 
 ### Post-download review screen (new)
 

@@ -131,6 +131,45 @@ async def create_stream(
                 detected_text = desc.raw_text
                 detected_source = "description"
 
+    if not info.is_live and detected_source is None:
+        from concertpvr.models import ChannelWatcher
+
+        with db.session() as s:
+            watcher = s.scalar(
+                select(ChannelWatcher).where(
+                    ChannelWatcher.channel_url == info.url,  # Fallback, see next line
+                    ChannelWatcher.extract_setlist_from_comments == True,  # noqa: E712
+                )
+            )
+            # Try to match the URL or just find by channel name if url does not match
+            if watcher is None and info.channel_name:
+                watcher = s.scalar(
+                    select(ChannelWatcher).where(
+                        ChannelWatcher.channel_name == info.channel_name,
+                        ChannelWatcher.extract_setlist_from_comments == True,  # noqa: E712
+                    )
+                )
+
+        if watcher is not None:
+            import asyncio
+
+            from concertpvr.ytdlp import _extract_sync
+
+            try:
+                # _extract_sync takes url, cookies_path, fetch_comments
+                cookies_str = str(cookies) if cookies else None
+                comments_info = await asyncio.to_thread(_extract_sync, info.url, cookies_str, fetch_comments=True)
+                comments_raw = comments_info.get("comments")
+                if comments_raw and isinstance(comments_raw, list):
+                    from concertpvr.setlist_detector import detect_in_comments
+
+                    detected = detect_in_comments(comments_raw)
+                    if detected is not None:
+                        detected_text = detected.raw_text
+                        detected_source = "comments"
+            except Exception:  # noqa: BLE001
+                pass
+
     rec_id: int | None = None
 
     with db.session() as s:

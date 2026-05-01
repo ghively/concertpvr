@@ -201,6 +201,7 @@ class SegmentRead(BaseModel):
     nfo_path: str | None
     # VOD field (v0.3)
     genres: str | None
+    original_upload_date: _dt.date | None = None
 
 
 class SegmentCreate(BaseModel):
@@ -269,6 +270,10 @@ class BacklogItem(BaseModel):
     # view_count is always None: yt-dlp flat-extract doesn't return view counts cheaply
     view_count: int | None
     state: Literal["downloaded", "queued", "not_downloaded"]
+
+
+class BacklogCancelRequest(BaseModel):
+    video_ids: list[str]
 
 
 class BacklogDownloadRequest(BaseModel):
