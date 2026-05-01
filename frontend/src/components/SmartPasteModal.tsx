@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { api, watchersApi, playlistApi } from "@/lib/api";
 import { keys } from "@/lib/query";
+import { cn } from "@/lib/utils";
 import type {
   ProbeResult,
   ProbeStreamResult,
@@ -402,7 +403,7 @@ function PlaylistResultView({
 }) {
   const [titleFilter, setTitleFilter] = useState("");
   const [selected, setSelected] = useState<Set<string>>(
-    new Set(result.items.map((i) => i.video_id)),
+    new Set(result.items.filter((i) => !i.is_already_known).map((i) => i.youtube_id)),
   );
 
   const ingest = useMutation<
@@ -447,10 +448,10 @@ function PlaylistResultView({
         <div className="space-y-1">
           {filteredItems.map((item) => (
             <PlaylistItemRow
-              key={item.video_id}
+              key={item.youtube_id}
               item={item}
-              checked={selected.has(item.video_id)}
-              onToggle={(disabled) => toggleItem(item.video_id, disabled)}
+              checked={selected.has(item.youtube_id)}
+              onToggle={(disabled) => toggleItem(item.youtube_id, disabled)}
             />
           ))}
         </div>
@@ -481,15 +482,14 @@ function PlaylistItemRow({
   checked: boolean;
   onToggle: (disabled: boolean) => void;
 }) {
-  // "already known" means it's already in our system — we'd need to check that
-  // For now we treat all items as selectable
-  const disabled = false;
+  const disabled = item.is_already_known;
 
   return (
     <label
-      className={`flex items-center gap-2 rounded px-2 py-1.5 cursor-pointer text-xs ${
+      className={cn(
+        "flex items-center gap-2 rounded px-2 py-1.5 cursor-pointer text-xs",
         disabled ? "opacity-40 cursor-not-allowed" : "hover:bg-surface-2"
-      }`}
+      )}
       onClick={(e) => {
         e.preventDefault();
         onToggle(disabled);
@@ -509,7 +509,7 @@ function PlaylistItemRow({
       )}
       <div className="flex-1 min-w-0">
         <div className="truncate font-medium">{item.title}</div>
-        <div className="text-ink-faint truncate">{item.channel}</div>
+        <div className="text-ink-faint truncate">{item.channel_name}</div>
       </div>
     </label>
   );

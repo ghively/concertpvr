@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import datetime as _dt
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from xml.sax.saxutils import escape
 
 from PIL import Image, ImageDraw, ImageFont
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -90,7 +93,7 @@ class MetadataBuilder:
                 src = Image.blend(src, overlay, 0.4)
                 canvas = src
             except Exception:
-                pass
+                logger.warning("poster crop failed", exc_info=True)
 
         draw = ImageDraw.Draw(canvas)
         artist_font, title_font, sub_font = self._load_fonts()
@@ -127,7 +130,7 @@ class MetadataBuilder:
                 src.save(out, "JPEG", quality=88)
                 return out
             except Exception:
-                pass
+                logger.warning("fanart crop failed", exc_info=True)
 
         Image.new("RGB", (FANART_W, FANART_H), color=(12, 14, 18)).save(out, "JPEG", quality=88)
         return out

@@ -311,7 +311,7 @@ export default function PostDownloadReviewPage() {
           <div className="font-semibold text-base truncate">{stream.title}</div>
           <div className="text-xs text-ink-dim mt-0.5 flex items-center gap-2 flex-wrap">
             <span>{stream.channel_name}</span>
-            {stream.upload_date && <span>· {stream.upload_date}</span>}
+            {stream.original_upload_date && <span>· {stream.original_upload_date}</span>}
             {duration > 0 && <span>· {fmt(duration)}</span>}
           </div>
           {description && (

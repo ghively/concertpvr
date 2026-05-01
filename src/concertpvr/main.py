@@ -175,7 +175,13 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
             splitter = _Splitter(runner=_AsyncSubprocessRunner())
             media_info = await splitter.probe(resolved_path)
         except Exception:  # noqa: BLE001
-            pass
+            logger_main = _logging_vod.getLogger(__name__)
+            logger_main.warning(
+                "ffprobe failed for recording %d at %s — leaving dimensions null",
+                rec_id,
+                resolved_path,
+                exc_info=True,
+            )
 
         with app.state.db.session() as s:
             rec = s.get(_Recording, rec_id)
@@ -193,6 +199,34 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
                 rec.height = media_info.height
                 rec.fps = int(media_info.fps)
                 rec.duration_s = int(media_info.duration_s)
+
+            auto_publish = rec.auto_publish_after_download
+
+            from sqlalchemy import select
+
+            from concertpvr.models import Segment
+
+            segs = list(s.scalars(select(Segment).where(Segment.recording_id == rec_id)))
+            publishable = [seg for seg in segs if seg.artist]
+
+        if not auto_publish:
+            return
+
+        if not publishable:
+            logger_main = _logging_vod.getLogger(__name__)
+            logger_main.info(
+                "auto_publish skipped for rec %d — no segments with non-null artist",
+                rec_id,
+            )
+            return
+
+        publisher = app.state.publisher_factory()
+        for seg in publishable:
+            try:
+                await publisher.publish(seg.id)
+            except Exception:  # noqa: BLE001
+                logger_main = _logging_vod.getLogger(__name__)
+                logger_main.exception("auto-publish failed for segment %d", seg.id)
 
     app.state.vod_queue = VodQueue(
         db=app.state.db,
@@ -330,7 +364,7 @@ def create_app() -> FastAPI:
 
     from concertpvr.api import playlists as _playlists_api
 
-    app.include_router(_playlists_api.router)
+    app.include_router(_playlists_api.router, prefix="/api")
 
     cfg = Config()
     if cfg.static_dir is not None and cfg.static_dir.is_dir():

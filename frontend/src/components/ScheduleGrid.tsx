@@ -3,7 +3,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useStreams } from "@/lib/query";
 
-const STATUS_COLOR = {
+// Schedule statuses are slightly different than recording statuses
+const SCHEDULE_STATUS_COLOR = {
   pending: "scheduled",
   running: "live",
   complete: "done",
@@ -79,7 +80,7 @@ export function ScheduleGrid({
                       {stream?.channel_name ?? "—"}
                     </div>
                   </div>
-                  <Badge color={STATUS_COLOR[sch.status]}>{sch.status}</Badge>
+                  <Badge color={SCHEDULE_STATUS_COLOR[sch.status]}>{sch.status}</Badge>
                 </Card>
               );
             })}

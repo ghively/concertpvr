@@ -21,7 +21,7 @@ from concertpvr.ytdlp import ProbeError, probe
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api")
+router = APIRouter()
 
 
 class PlaylistIngestRequest(BaseModel):

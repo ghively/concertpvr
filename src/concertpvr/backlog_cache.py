@@ -92,6 +92,72 @@ async def fetch_full_channel(db: Database, watcher_id: int) -> int:
     return len(items_payload)
 
 
+BATCH_SIZE = 20
+
+
+async def fetch_full_channel_with_views(db: Database, watcher_id: int) -> int:
+    """Slow-refresh: flat-extract first for IDs, then per-video probes for view_count."""
+    # Step 1: flat-extract (reuses existing path, gets the IDs)
+    count = await fetch_full_channel(db, watcher_id)
+
+    # Step 2: per-video probes in batches
+    with db.session() as s:
+        cache = s.get(ChannelBacklogCache, watcher_id)
+        if cache is None or cache.items_json is None:
+            return count
+        items = list(cache.items_json)
+        ids_to_probe = [str(it["youtube_id"]) for it in items]
+        cache.status = "fetching"
+        cache.progress_pct = 0
+
+    import asyncio
+
+    from concertpvr.recording_starter import _resolve_cookies_path
+    from concertpvr.ytdlp_channels import probe_video_metadata
+    from concertpvr.ytdlp_channels import ProbeResult
+
+    cookies_path = _resolve_cookies_path(db)
+    cookies_str = str(cookies_path) if cookies_path else None
+
+    total = len(ids_to_probe)
+    done = 0
+    view_counts: dict[str, int | None] = {}
+
+    for i in range(0, total, BATCH_SIZE):
+        batch = ids_to_probe[i : i + BATCH_SIZE]
+        results = await asyncio.gather(
+            *(probe_video_metadata(yid, cookies_path=cookies_str) for yid in batch),
+            return_exceptions=False,
+        )
+        for r in results:
+            if isinstance(r, ProbeResult):
+                view_counts[r.youtube_id] = r.view_count
+
+        done += len(batch)
+        with db.session() as s:
+            cache = s.get(ChannelBacklogCache, watcher_id)
+            if cache is None:
+                return count
+            # update items_json in-place with view_counts so far
+            merged = []
+            for it in cache.items_json or []:
+                yid = str(it["youtube_id"])
+                if yid in view_counts:
+                    it = {**it, "view_count": view_counts[yid]}
+                merged.append(it)
+            cache.items_json = merged
+            cache.progress_pct = int(done / max(total, 1) * 100)
+
+    with db.session() as s:
+        cache = s.get(ChannelBacklogCache, watcher_id)
+        if cache is not None:
+            cache.status = "complete"
+            cache.fetched_at = _dt.datetime.now(_dt.UTC)
+            cache.progress_pct = 100
+
+    return count
+
+
 def is_stale(cache: ChannelBacklogCache | None) -> bool:
     if cache is None or cache.fetched_at is None or cache.status != "complete":
         return True

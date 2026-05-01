@@ -17,6 +17,7 @@ from concertpvr.deps import get_db
 from concertpvr.models import ChannelBacklogCache, ChannelWatcher, Recording, Stream
 from concertpvr.recording_starter import _resolve_cookies_path
 from concertpvr.schemas import (
+    BacklogCancelRequest,
     BacklogDownloadRequest,
     BacklogItem,
     ChannelWatcherCreate,
@@ -163,6 +164,7 @@ def get_watcher_backlog_status(
 async def refresh_watcher_backlog(
     watcher_id: int,
     request: Request,
+    probe_views: bool = Query(False),
     db: Database = Depends(get_db),  # noqa: B008
 ) -> dict[str, object]:
     """Trigger an async full-channel cache refresh.
@@ -186,7 +188,12 @@ async def refresh_watcher_backlog(
     # cache row by fetch_full_channel itself.
     async def _bg() -> None:
         try:
-            await fetch_full_channel(db, watcher_id)
+            if probe_views:
+                from concertpvr.backlog_cache import fetch_full_channel_with_views
+
+                await fetch_full_channel_with_views(db, watcher_id)
+            else:
+                await fetch_full_channel(db, watcher_id)
         except Exception:  # noqa: BLE001
             logger.exception("background fetch_full_channel failed for %d", watcher_id)
 
@@ -203,7 +210,7 @@ async def get_watcher_backlog(
     request: Request,
     limit: int = Query(50, ge=1, le=200),  # noqa: B008
     offset: int = Query(0, ge=0),  # noqa: B008
-    sort: Literal["newest", "longest", "oldest"] = Query("newest"),  # noqa: B008
+    sort: Literal["newest", "longest", "oldest", "most_viewed"] = Query("newest"),  # noqa: B008
     q: str | None = Query(None),  # noqa: B008
     db: Database = Depends(get_db),  # noqa: B008
 ) -> list[BacklogItem]:
@@ -256,6 +263,13 @@ async def get_watcher_backlog(
             return int(d) if isinstance(d, (int, float)) else 0
 
         items_raw = sorted(items_raw, key=_dur, reverse=True)
+    elif sort == "most_viewed":
+
+        def _vc(it: dict[str, object]) -> int:
+            v = it.get("view_count")
+            return int(v) if isinstance(v, (int, float)) else -1
+
+        items_raw = sorted(items_raw, key=_vc, reverse=True)
     # "newest" — preserve existing order (yt-dlp returns newest first).
 
     page = items_raw[offset : offset + limit]
@@ -302,6 +316,11 @@ async def get_watcher_backlog(
             int(duration_s_raw) if isinstance(duration_s_raw, (int, float)) else None
         )
 
+        view_count_raw = it.get("view_count")
+        view_count_val: int | None = (
+            int(view_count_raw) if isinstance(view_count_raw, (int, float)) else None
+        )
+
         result.append(
             BacklogItem(
                 youtube_id=yid,
@@ -310,11 +329,62 @@ async def get_watcher_backlog(
                 thumbnail_url=(str(it["thumbnail_url"]) if it.get("thumbnail_url") else None),
                 upload_date=upload_date_val,
                 duration_s=duration_s_val,
-                view_count=None,  # flat-extract doesn't return view counts
+                view_count=view_count_val,
                 state=state,
             )
         )
     return result
+
+
+@router.post(
+    "/channel-watchers/{watcher_id}/backlog/cancel",
+)
+async def cancel_backlog_downloads(
+    watcher_id: int,
+    payload: BacklogCancelRequest,
+    request: Request,
+    db: Database = Depends(get_db),  # noqa: B008
+) -> dict[str, list[str]]:
+    """Cancel queued backlog downloads for the given video_ids.
+
+    Only affects recordings in vod_queued state — running downloads must be
+    stopped via the recording-level retry/cancel surface (separate concern).
+    Returns the list of youtube_ids that were actually cancelled.
+    """
+    with db.session() as s:
+        watcher = s.get(ChannelWatcher, watcher_id)
+        if watcher is None:
+            raise HTTPException(404, "watcher not found")
+        streams = list(s.scalars(select(Stream).where(Stream.youtube_id.in_(payload.video_ids))))
+        stream_ids = [st.id for st in streams]
+        recs = list(
+            s.scalars(
+                select(Recording).where(
+                    Recording.stream_id.in_(stream_ids),
+                    Recording.status == "vod_queued",
+                )
+            )
+        )
+        cancelled_youtube_ids = []
+        for rec in recs:
+            s.delete(rec)
+            # also delete the stream if no other recording exists for it
+            other = s.scalar(
+                select(Recording).where(
+                    Recording.stream_id == rec.stream_id,
+                    Recording.id != rec.id,
+                )
+            )
+            if other is None:
+                st = next((x for x in streams if x.id == rec.stream_id), None)
+                if st is not None:
+                    cancelled_youtube_ids.append(st.youtube_id)
+                    s.delete(st)
+
+    # also drop from the queue if it's there
+    for yid in cancelled_youtube_ids:
+        await request.app.state.vod_queue.cancel_by_youtube_id(yid)
+    return {"cancelled": cancelled_youtube_ids}
 
 
 @router.post(

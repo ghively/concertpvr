@@ -18,6 +18,35 @@ class ChannelProbeError(Exception):
     """Raised when probe_channel cannot extract channel metadata."""
 
 
+@dataclass
+class ProbeResult:
+    youtube_id: str
+    view_count: int | None
+
+
+async def probe_video_metadata(
+    youtube_id: str,
+    *,
+    cookies_path: str | None = None,
+) -> ProbeResult:
+    """Single-video full-extract for view_count.
+
+    Returns view_count=None on any failure (private/deleted/rate-limited).
+    Never raises — failures are recorded as missing data.
+    """
+    url = f"https://www.youtube.com/watch?v={youtube_id}"
+    try:
+        from concertpvr.ytdlp import _extract_sync
+
+        info = await asyncio.to_thread(_extract_sync, url, cookies_path, False)
+        vc = info.get("view_count")
+        view_count = int(vc) if isinstance(vc, (int, float)) else None
+        return ProbeResult(youtube_id=youtube_id, view_count=view_count)
+    except Exception:  # noqa: BLE001
+        logger.warning("probe_video_metadata failed for %s", youtube_id, exc_info=True)
+        return ProbeResult(youtube_id=youtube_id, view_count=None)
+
+
 @dataclass(frozen=True)
 class BroadcastInfo:
     youtube_id: str

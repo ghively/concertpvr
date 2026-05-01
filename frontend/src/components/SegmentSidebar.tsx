@@ -8,7 +8,8 @@ import { useConfirm } from "@/components/ui/confirm";
 import { cn } from "@/lib/utils";
 import { COMMON_GENRES } from "@/lib/genres";
 
-const STATUS_COLOR = {
+// Segment statuses are different than recording statuses
+const SEGMENT_STATUS_COLOR = {
   draft: "neutral",
   publishing: "buffering",
   published: "done",
@@ -179,7 +180,7 @@ export function SegmentSidebar({
                 className="font-medium text-sm flex-1"
                 onClick={(e) => e.stopPropagation()}
               />
-              <Badge color={STATUS_COLOR[seg.status]}>{seg.status}</Badge>
+              <Badge color={SEGMENT_STATUS_COLOR[seg.status]}>{seg.status}</Badge>
               {isSaving && (
                 <span className="text-[10px] text-amber animate-pulse">saving…</span>
               )}

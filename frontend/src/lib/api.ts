@@ -69,7 +69,7 @@ export type Stream = {
   added_at: string;
   // VOD metadata (v0.3)
   description?: string | null;
-  upload_date?: string | null;
+  original_upload_date?: string | null;
   duration_s?: number | null;
   youtube_tags?: string[] | null;
   detected_setlist_text?: string | null;
@@ -163,6 +163,7 @@ export type Segment = {
   poster_path: string | null;
   nfo_path: string | null;
   genres?: string | null;
+  original_upload_date?: string | null;
 };
 
 export type SegmentCreate = {
@@ -412,13 +413,15 @@ export type ProbeChannelResult = {
   url: string;
 };
 
-export type ProbePlaylistItem = {
-  video_id: string;
+export interface ProbePlaylistItem {
+  youtube_id: string;
   title: string;
-  channel: string;
-  thumbnail_url: string | null;
+  channel_name: string | null;
+  is_already_known: boolean;
   duration_s: number | null;
-};
+  upload_date: string | null;
+  thumbnail_url: string | null;
+}
 
 export type ProbePlaylistResult = {
   type: "playlist";
