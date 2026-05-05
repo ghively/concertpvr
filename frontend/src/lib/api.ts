@@ -110,7 +110,8 @@ export type RecordingStatus =
   | "interrupted"
   | "vod_queued"
   | "vod_downloading"
-  | "vod_failed";
+  | "vod_failed"
+  | "vod_cancelled";
 
 export type Recording = {
   id: number;
@@ -141,6 +142,10 @@ export const recordingsApi = {
     return api.get<Recording[]>(`/api/recordings${qs}`);
   },
   get: (id: number) => api.get<Recording>(`/api/recordings/${id}`),
+  getSchedule: (id: number) =>
+    api.get<Schedule | null>(`/api/recordings/${id}/schedule`),
+  cancel: (id: number) =>
+    api.post<{ status: string; previous: string }>(`/api/recordings/${id}/cancel`, {}),
 };
 
 // ── Segments ────────────────────────────────────────────────────────────────
@@ -189,6 +194,25 @@ export type PublishOptions = {
   year?: number | null;
 };
 
+export type BulkPublishRequest = {
+  segment_ids: number[];
+  festival?: string | null;
+  venue?: string | null;
+  year?: number | null;
+};
+
+export type BulkPublishItemResult = {
+  segment_id: number;
+  status: "published" | "failed";
+  error: string | null;
+};
+
+export type BulkPublishResponse = {
+  results: BulkPublishItemResult[];
+  succeeded: number;
+  failed: number;
+};
+
 export const segmentsApi = {
   list: (recordingId: number) =>
     api.get<Segment[]>(`/api/segments?recording_id=${recordingId}`),
@@ -197,6 +221,8 @@ export const segmentsApi = {
   delete: (id: number) => api.delete<void>(`/api/segments/${id}`),
   publish: (id: number, opts: PublishOptions) =>
     api.post<Segment>(`/api/segments/${id}/publish`, opts),
+  bulkPublish: (p: BulkPublishRequest) =>
+    api.post<BulkPublishResponse>("/api/segments/bulk-publish", p),
 };
 
 // ── Setlists ────────────────────────────────────────────────────────────────
@@ -379,7 +405,12 @@ export const watchersApi = {
 
 // ── Backlog ──────────────────────────────────────────────────────────────────
 
-export type BacklogCacheStatus = "never_fetched" | "fetching" | "complete" | "error";
+export type BacklogCacheStatus =
+  | "never_fetched"
+  | "fetching"
+  | "complete"
+  | "error"
+  | "cancelled";
 
 export interface BacklogCacheState {
   status: BacklogCacheStatus;

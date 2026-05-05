@@ -16,8 +16,8 @@ from sqlalchemy import select
 from concertpvr.chapters import extract_chapters_json
 from concertpvr.db import Database
 from concertpvr.deps import get_db
-from concertpvr.models import Recording, Segment
-from concertpvr.schemas import RecordingRead
+from concertpvr.models import Recording, Schedule, Segment
+from concertpvr.schemas import RecordingRead, ScheduleRead
 
 router = APIRouter()
 
@@ -216,6 +216,56 @@ async def retry_vod(
 
     await request.app.state.vod_queue.enqueue(rec_id)
     return {"status": "vod_queued"}
+
+
+@router.get("/recordings/{recording_id}/schedule", response_model=ScheduleRead | None)
+def get_recording_schedule(
+    recording_id: int,
+    db: Database = Depends(get_db),  # noqa: B008
+) -> Schedule | None:
+    """Return the Schedule that produced this Recording, or null if it was ad-hoc.
+
+    Reverse lookup for the v0.1 limitation where Recording rows didn't carry a
+    schedule_id. Implemented as a query against Schedule.recording_id (which has
+    been indexed since v0.1.1) — no migration needed.
+    """
+    with db.session() as s:
+        rec = s.get(Recording, recording_id)
+        if rec is None:
+            raise HTTPException(status_code=404, detail="recording not found")
+        sched = s.scalar(select(Schedule).where(Schedule.recording_id == recording_id))
+        if sched is None:
+            return None
+        s.expunge(sched)
+    return sched
+
+
+@router.post("/recordings/{recording_id}/cancel", status_code=200)
+async def cancel_vod_download(
+    recording_id: int,
+    request: Request,
+    db: Database = Depends(get_db),  # noqa: B008
+) -> dict[str, str]:
+    """Cancel a queued or running VOD download.
+
+    Behavior by current status:
+      - vod_queued: marks the row vod_cancelled; the queue worker skips it when its turn comes.
+      - vod_downloading: SIGTERMs the yt-dlp subprocess; the worker observes
+        VodCancelled and writes vod_cancelled.
+      - any other status: 409 Conflict (recording is not cancellable).
+    """
+    with db.session() as s:
+        rec = s.get(Recording, recording_id)
+        if rec is None:
+            raise HTTPException(status_code=404, detail="recording not found")
+        if rec.status not in ("vod_queued", "vod_downloading"):
+            raise HTTPException(
+                status_code=409,
+                detail=f"recording is in {rec.status} state — only queued/downloading can be cancelled",
+            )
+
+    result = await request.app.state.vod_queue.cancel(recording_id)
+    return {"status": "vod_cancelled", "previous": result}
 
 
 @router.delete("/recordings/{recording_id}/source", status_code=204)

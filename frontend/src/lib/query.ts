@@ -123,6 +123,15 @@ export function useDeleteRecordingSource() {
   });
 }
 
+export function useCancelRecording() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) =>
+      api.post<{ status: string; previous: string }>(`/api/recordings/${id}/cancel`, {}),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["recordings"] }),
+  });
+}
+
 import {
   type Schedule,
   type ScheduleCreate,
@@ -226,6 +235,25 @@ export function usePublishedSegments() {
   });
 }
 
+export function useFailedSegments() {
+  return useQuery<Segment[]>({
+    queryKey: ["segments", "publish_failed"],
+    queryFn: () => api.get<Segment[]>("/api/segments?status=publish_failed"),
+    refetchInterval: 30_000,
+  });
+}
+
+export function useBulkPublish() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (segmentIds: number[]) =>
+      segmentsApi.bulkPublish({ segment_ids: segmentIds }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["segments"] });
+    },
+  });
+}
+
 import {
   type ChannelWatcher,
   type ChannelWatcherCreate,
@@ -318,6 +346,20 @@ export function useRefreshBacklog(watcherId: number) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["backlog-status", watcherId] });
       qc.invalidateQueries({ queryKey: ["backlog", watcherId] });
+    },
+  });
+}
+
+export function useCancelBacklogRefresh(watcherId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      api.post<{ status: string }>(
+        `/api/channel-watchers/${watcherId}/backlog/refresh/cancel`,
+        {},
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["backlog-status", watcherId] });
     },
   });
 }

@@ -1,5 +1,78 @@
 # Changelog
 
+## v0.4.0 — 2026-05-05
+
+Wrap-up release closing the v0.3.4/v0.4 punch list from `jules.md`. Six
+shippable features, no schema changes, 24 new tests (312 total).
+
+### Added — VOD lifecycle controls
+
+- **Cancel a running VOD download.** `POST /api/recordings/{id}/cancel`
+  SIGTERMs the yt-dlp subprocess; the queue worker observes `VodCancelled`
+  and writes a new terminal status `vod_cancelled`. Also handles
+  `vod_queued` rows by skipping the handler when the worker pops them.
+  Frontend exposes a Cancel button on `/recordings/vod` for both states.
+- **Slow-refresh cancellation + resumption.** `POST
+  /api/channel-watchers/{id}/backlog/refresh/cancel` flips a module-level
+  flag the slow-refresh loop checks between batches; partial view-count
+  progress is preserved as `cache.status='cancelled'`. Clicking Refresh
+  again from that state resumes from where the user stopped — items that
+  already have a `view_count` are skipped on the second pass. Frontend
+  shows a Cancel button during fetching and a Resume banner when
+  cancelled.
+- **Most viewed sort chip restored.** Was added to the backend in v0.3.3
+  but the frontend's `SortMode` had not been extended.
+
+### Added — Library / publishing
+
+- **Bulk-retry failed publishes.** `POST /api/segments/bulk-publish`
+  accepts a list of `segment_ids` and continues past per-row failures,
+  returning a per-segment status. Library page surfaces a banner when
+  any publish_failed segments exist with a one-click retry.
+- **Recording → Schedule reverse lookup.** `GET
+  /api/recordings/{id}/schedule` returns the Schedule row that produced a
+  given Recording (or `null` for ad-hoc recordings). Closes the v0.1
+  limitation note without a migration; `Schedule.recording_id` was
+  already indexed.
+
+### Added — UX
+
+- **Calendar grid view for the Schedule page.** Toggle between List and
+  Calendar; preference persisted in `localStorage`. Month grid with
+  prev/next/today nav, status-coloured event chips, and click-through to
+  the existing detail panel. List view (the v0.3 grouped-by-day layout)
+  is unchanged.
+
+### Security
+
+- **WebSocket auth gate.** `/ws/streams/{id}/progress` and
+  `/ws/recordings/{id}/progress` now apply the same auth check as HTTP
+  routes when a password is configured. Connections without a valid
+  `cpvr_session` cookie are closed with policy code 1008. When no
+  password is set, the endpoints remain open (matches HTTP behaviour).
+
+### Fixed
+
+- `VodCancelled` was double-defined (in `vod_queue` and `vod_downloader`)
+  causing the queue worker's `except` to miss the exception raised from
+  the downloader. Consolidated to a single class re-exported from
+  `vod_queue`.
+
+### Tests
+
+- 24 new tests across six new files covering each shipped feature:
+  `test_vod_queue_cancel`, `test_recordings_cancel_api`,
+  `test_backlog_slow_refresh_cancel`, `test_ws_auth`,
+  `test_recording_schedule_lookup`, `test_segments_bulk_publish`.
+- Backend: 312 passed, 4 skipped (env-gated integration). ruff/format/mypy
+  clean. Frontend: tsc + vite build clean.
+
+### No schema changes
+
+Migration count stays at 9 (0001…0009).
+
+---
+
 ## v0.3.3 — 2026-04-27
 
 Bug sweep + Most viewed backlog sort.

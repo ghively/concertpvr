@@ -9,4 +9,5 @@ export const STATUS_META: Record<RecordingStatus, { color: BadgeColor; label: st
   vod_queued: { color: "scheduled", label: "Queued" },
   vod_downloading: { color: "buffering", label: "Downloading" },
   vod_failed: { color: "failed", label: "Failed" },
+  vod_cancelled: { color: "neutral", label: "Cancelled" },
 };

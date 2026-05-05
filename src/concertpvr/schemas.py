@@ -131,8 +131,8 @@ class RecordingRead(BaseModel):
     width: int | None
     height: int | None
     fps: int | None
-    # v0.3: extended with VOD-pipeline statuses. Order = chronological state
-    # transition order so future readers can follow the lifecycle.
+    # v0.3+v0.4: extended with VOD-pipeline statuses. Order = chronological
+    # state transition order so future readers can follow the lifecycle.
     status: Literal[
         "recording",
         "complete",
@@ -141,6 +141,7 @@ class RecordingRead(BaseModel):
         "vod_queued",
         "vod_downloading",
         "vod_failed",
+        "vod_cancelled",
     ]
     is_buffer: bool
     error: str | None
@@ -258,6 +259,29 @@ class PublishOptions(BaseModel):
     festival: str | None = None
     venue: str | None = None
     year: int | None = None
+
+
+class BulkPublishRequest(BaseModel):
+    """Re-publish multiple segments in one call (bulk-retry for publish_failed)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    segment_ids: list[int]
+    festival: str | None = None
+    venue: str | None = None
+    year: int | None = None
+
+
+class BulkPublishItemResult(BaseModel):
+    segment_id: int
+    status: Literal["published", "failed"]
+    error: str | None = None
+
+
+class BulkPublishResponse(BaseModel):
+    results: list[BulkPublishItemResult]
+    succeeded: int
+    failed: int
 
 
 class BacklogItem(BaseModel):

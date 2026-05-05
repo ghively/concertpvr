@@ -1,6 +1,6 @@
 [project]
 name = "concertpvr"
-version = "0.1.0"
+version = "0.4.0"
 description = "YouTube concert and livestream PVR with Emby integration"
 requires-python = ">=3.12"
 dependencies = [

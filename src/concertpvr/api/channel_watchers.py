@@ -11,7 +11,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response,
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from concertpvr.backlog_cache import fetch_full_channel, is_stale
+from concertpvr.backlog_cache import (
+    fetch_full_channel,
+    is_stale,
+)
+from concertpvr.backlog_cache import (
+    request_cancel as request_backlog_cancel,
+)
 from concertpvr.db import Database
 from concertpvr.deps import get_db
 from concertpvr.models import ChannelBacklogCache, ChannelWatcher, Recording, Stream
@@ -199,6 +205,28 @@ async def refresh_watcher_backlog(
 
     _asyncio.create_task(_bg())
     return {"status": "fetching", "started": True}
+
+
+@router.post(
+    "/channel-watchers/{watcher_id}/backlog/refresh/cancel",
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def cancel_watcher_backlog_refresh(
+    watcher_id: int,
+    db: Database = Depends(get_db),  # noqa: B008
+) -> dict[str, str]:
+    """Ask the running slow-refresh for this watcher to stop after its next batch.
+
+    Idempotent: if no refresh is running, the request is dropped. The cache
+    transitions to `cancelled` with whatever partial progress was made; the
+    next /refresh call resumes from where it stopped.
+    """
+    with db.session() as s:
+        watcher = s.get(ChannelWatcher, watcher_id)
+        if watcher is None:
+            raise HTTPException(status_code=404, detail="watcher not found")
+    request_backlog_cancel(watcher_id)
+    return {"status": "cancel_requested"}
 
 
 @router.get(

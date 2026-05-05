@@ -10,6 +10,9 @@ from concertpvr.db import Database
 from concertpvr.deps import get_db
 from concertpvr.models import Recording, Segment
 from concertpvr.schemas import (
+    BulkPublishItemResult,
+    BulkPublishRequest,
+    BulkPublishResponse,
     PublishOptions,
     SegmentCreate,
     SegmentPatch,
@@ -128,6 +131,51 @@ def delete_segment(segment_id: int, db: Database = Depends(get_db)) -> Response:
             raise HTTPException(status_code=404, detail="segment not found")
         s.delete(seg)
     return Response(status_code=204)
+
+
+@router.post("/segments/bulk-publish", response_model=BulkPublishResponse)
+async def bulk_publish(
+    payload: BulkPublishRequest,
+    request: Request,
+    db: Database = Depends(get_db),  # noqa: B008
+) -> BulkPublishResponse:
+    """Re-publish multiple segments in one call.
+
+    Designed for the "auto-publish failed" workflow: a watcher with
+    auto_publish=true downloads a VOD, segments get drafted, and the
+    publisher hits a transient ffmpeg/Emby error on one or more. The user
+    fixes the underlying issue, then bulk-retries the failures from the UI.
+
+    Continues past per-segment failures — never aborts the loop. The response
+    is a per-segment status so the UI can show which ones still failed.
+    """
+    publisher = request.app.state.publisher_factory()
+    results: list[BulkPublishItemResult] = []
+    succeeded = 0
+    failed = 0
+
+    for seg_id in payload.segment_ids:
+        try:
+            await publisher.publish(
+                seg_id,
+                festival=payload.festival,
+                venue=payload.venue,
+                year=payload.year,
+            )
+            results.append(BulkPublishItemResult(segment_id=seg_id, status="published"))
+            succeeded += 1
+        except LookupError as e:
+            results.append(
+                BulkPublishItemResult(segment_id=seg_id, status="failed", error=f"not found: {e}")
+            )
+            failed += 1
+        except Exception as e:  # noqa: BLE001
+            results.append(
+                BulkPublishItemResult(segment_id=seg_id, status="failed", error=str(e)[:200])
+            )
+            failed += 1
+
+    return BulkPublishResponse(results=results, succeeded=succeeded, failed=failed)
 
 
 @router.post("/segments/{segment_id}/publish", response_model=SegmentRead)

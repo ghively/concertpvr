@@ -1,5 +1,10 @@
 import { useState, useMemo } from "react";
-import { useWatcherBacklog, useBacklogStatus, useRefreshBacklog } from "@/lib/query";
+import {
+  useWatcherBacklog,
+  useBacklogStatus,
+  useRefreshBacklog,
+  useCancelBacklogRefresh,
+} from "@/lib/query";
 import { api } from "@/lib/api";
 import type { BacklogItem } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -8,10 +13,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { watchersKeys } from "@/lib/query";
 import { cn } from "@/lib/utils";
 
-type SortMode = "newest" | "longest" | "oldest";
+type SortMode = "newest" | "most_viewed" | "longest" | "oldest";
 
 const SORT_LABELS: { value: SortMode; label: string }[] = [
   { value: "newest", label: "Newest" },
+  { value: "most_viewed", label: "Most viewed" },
   { value: "longest", label: "Longest" },
   { value: "oldest", label: "Oldest" },
 ];
@@ -190,6 +196,7 @@ export function BacklogBrowser({ watcherId }: { watcherId: number }) {
 
   // User-triggered only — backlog browse never auto-downloads.
   const refreshMutation = useRefreshBacklog(watcherId);
+  const cancelRefreshMutation = useCancelBacklogRefresh(watcherId);
 
   const { data, isLoading, isError } = useWatcherBacklog(watcherId, sort, offset, "");
 
@@ -339,8 +346,37 @@ export function BacklogBrowser({ watcherId }: { watcherId: number }) {
           {cacheState.progress_pct > 0 && (
             <span className="text-[11px] text-ink-faint">{cacheState.progress_pct}%</span>
           )}
-          <Button variant="default" disabled>
-            Refresh
+          <Button
+            variant="default"
+            onClick={() => cancelRefreshMutation.mutate()}
+            disabled={cancelRefreshMutation.isPending}
+          >
+            {cancelRefreshMutation.isPending ? "Cancelling…" : "Cancel"}
+          </Button>
+        </div>
+      );
+    }
+
+    if (cacheState.status === "cancelled") {
+      return (
+        <div className="bg-surface-1 border border-amber/40 rounded px-4 py-4 mb-4 flex items-center gap-3">
+          <span className="text-[12px] text-amber flex-1">
+            Refresh cancelled at {cacheState.progress_pct}%. Click Refresh to resume from where you stopped.
+          </span>
+          <label className="flex items-center gap-1 text-[11px] text-ink-dim">
+            <input
+              type="checkbox"
+              checked={probeViews}
+              onChange={(e) => setProbeViews(e.target.checked)}
+            />
+            Include view counts (slower)
+          </label>
+          <Button
+            variant="default"
+            onClick={handleRefresh}
+            disabled={refreshMutation.isPending}
+          >
+            {refreshMutation.isPending ? "Resuming…" : "Resume"}
           </Button>
         </div>
       );

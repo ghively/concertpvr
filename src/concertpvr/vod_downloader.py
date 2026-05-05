@@ -15,13 +15,17 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from concertpvr.process import ProcessRunner
+from concertpvr.process import ManagedProcess, ProcessRunner
 
 logger = logging.getLogger(__name__)
 
 
 class VodDownloadError(Exception):
     """yt-dlp exited non-zero when downloading a VOD."""
+
+
+class VodCancelled(Exception):
+    """Download was cancelled (subprocess terminated via SIGTERM)."""
 
 
 @dataclass(frozen=True)
@@ -90,7 +94,14 @@ class VodDownloader:
         quality_format: str,
         cookies_path: Path | None,
         on_progress: Callable[[VodProgress], Awaitable[None]] | None,
+        on_spawn: Callable[[ManagedProcess], None] | None = None,
     ) -> None:
+        """Run yt-dlp.
+
+        on_spawn: called once with the ManagedProcess after spawn so callers
+        can register it for cancellation. SIGTERM on the proc terminates the
+        download cleanly and raises VodCancelled.
+        """
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         # Invoke yt-dlp as a Python module via the current interpreter so we
@@ -116,6 +127,8 @@ class VodDownloader:
         last_stdout: list[str] = []
 
         proc = await self._runner.spawn(args)
+        if on_spawn is not None:
+            on_spawn(proc)
 
         async def drain_stdout() -> None:
             async for line in proc.stdout_lines():
@@ -133,6 +146,12 @@ class VodDownloader:
 
         await asyncio.gather(drain_stdout(), drain_stderr())
         exit_code = await proc.wait()
+
+        # Negative exit code = killed by signal. SIGTERM (-15) means we
+        # explicitly cancelled via VodQueue.cancel; raise VodCancelled so
+        # the caller can mark the row appropriately rather than vod_failed.
+        if exit_code < 0:
+            raise VodCancelled(f"yt-dlp terminated by signal {-exit_code}")
 
         if exit_code != 0:
             # Include stdout errors too (yt-dlp may write "ERROR:" to stdout)

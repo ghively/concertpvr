@@ -4,7 +4,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { VodProgressBar } from "@/components/VodProgressBar";
 import type { Recording, Stream } from "@/lib/api";
-import { useRetryRecording, useDeleteRecordingSource } from "@/lib/query";
+import {
+  useRetryRecording,
+  useDeleteRecordingSource,
+  useCancelRecording,
+} from "@/lib/query";
 import { STATUS_META } from "@/lib/badges";
 
 interface VodRecordingRowProps {
@@ -16,14 +20,16 @@ interface VodRecordingRowProps {
  * Purpose-built row for VOD recordings on /recordings/vod.
  *
  * Action buttons match the VOD lifecycle:
- *  - vod_queued: Cancel (DELETE /recordings/{id}) — TODO if not implemented
+ *  - vod_queued / vod_downloading: Cancel (POST /recordings/{id}/cancel)
  *  - vod_downloading: VodProgressBar with live %
- *  - complete: Open Review → /recordings/:id/review (or Library link if all segments published)
+ *  - complete: Open Review → /recordings/:id/review
  *  - vod_failed: Retry → POST /recordings/{id}/retry
+ *  - vod_cancelled: terminal — no actions
  */
 export function VodRecordingRow({ recording: r, stream: s }: VodRecordingRowProps) {
   const retryMut = useRetryRecording();
   const deleteSourceMut = useDeleteRecordingSource();
+  const cancelMut = useCancelRecording();
   const status = STATUS_META[r.status] ?? { color: "neutral", label: r.status };
 
   return (
@@ -58,6 +64,23 @@ export function VodRecordingRow({ recording: r, stream: s }: VodRecordingRowProp
       </div>
 
       <div className="flex flex-col gap-2 items-end">
+        {(r.status === "vod_queued" || r.status === "vod_downloading") && (
+          <Button
+            variant="default"
+            onClick={() => {
+              const msg =
+                r.status === "vod_downloading"
+                  ? "Cancel this download? The partial file will be discarded."
+                  : "Remove this from the queue?";
+              if (window.confirm(msg)) {
+                cancelMut.mutate(r.id);
+              }
+            }}
+            disabled={cancelMut.isPending}
+          >
+            Cancel
+          </Button>
+        )}
         {r.status === "vod_failed" && (
           <Button onClick={() => retryMut.mutate(r.id)} disabled={retryMut.isPending}>
             Retry
