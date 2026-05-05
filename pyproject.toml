@@ -41,6 +41,9 @@ where = ["src"]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 addopts = "-q --strict-markers"
+markers = [
+    "contracts: frontend↔backend payload contract tests (see tests/test_frontend_contracts.py)",
+]
 
 [tool.ruff]
 line-length = 100

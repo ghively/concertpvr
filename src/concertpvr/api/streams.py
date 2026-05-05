@@ -158,7 +158,9 @@ async def create_stream(
             try:
                 # _extract_sync takes url, cookies_path, fetch_comments
                 cookies_str = str(cookies) if cookies else None
-                comments_info = await asyncio.to_thread(_extract_sync, info.url, cookies_str, fetch_comments=True)
+                comments_info = await asyncio.to_thread(
+                    _extract_sync, info.url, cookies_str, fetch_comments=True
+                )
                 comments_raw = comments_info.get("comments")
                 if comments_raw and isinstance(comments_raw, list):
                     from concertpvr.setlist_detector import detect_in_comments

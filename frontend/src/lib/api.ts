@@ -70,7 +70,6 @@ export type Stream = {
   // VOD metadata (v0.3)
   description?: string | null;
   original_upload_date?: string | null;
-  duration_s?: number | null;
   youtube_tags?: string[] | null;
   detected_setlist_text?: string | null;
   detected_setlist_source?: string | null;

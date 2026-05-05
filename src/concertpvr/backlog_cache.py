@@ -113,8 +113,7 @@ async def fetch_full_channel_with_views(db: Database, watcher_id: int) -> int:
     import asyncio
 
     from concertpvr.recording_starter import _resolve_cookies_path
-    from concertpvr.ytdlp_channels import probe_video_metadata
-    from concertpvr.ytdlp_channels import ProbeResult
+    from concertpvr.ytdlp_channels import ProbeResult, probe_video_metadata
 
     cookies_path = _resolve_cookies_path(db)
     cookies_str = str(cookies_path) if cookies_path else None

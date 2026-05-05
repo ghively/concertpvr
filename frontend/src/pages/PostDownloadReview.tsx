@@ -184,7 +184,7 @@ export default function PostDownloadReviewPage() {
   const [drafts, setDrafts] = useState<SegmentDraft[]>([]);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
-  const duration = stream?.duration_s ?? recording?.duration_s ?? 0;
+  const duration = recording?.duration_s ?? 0;
 
   // Initialize drafts from existing segments or build defaults
   useEffect(() => {
