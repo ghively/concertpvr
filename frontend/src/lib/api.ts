@@ -449,7 +449,7 @@ export type BacklogItem = {
 export type ProbeChannelResult = {
   type: "channel";
   channel_name: string;
-  channel_id: string;
+  avatar_url: string | null;
   url: string;
 };
 
@@ -487,5 +487,5 @@ export type PlaylistIngestConfirm = {
 
 export const playlistApi = {
   confirm: (p: PlaylistIngestConfirm) =>
-    api.post<{ queued: number }>("/api/playlists/ingest/confirm", p),
+    api.post<{ queued_recording_ids: number[] }>("/api/playlists/ingest/confirm", p),
 };

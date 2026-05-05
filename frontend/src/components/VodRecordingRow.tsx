@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm";
 import { VodProgressBar } from "@/components/VodProgressBar";
 import type { Recording, Stream } from "@/lib/api";
 import {
@@ -30,6 +31,7 @@ export function VodRecordingRow({ recording: r, stream: s }: VodRecordingRowProp
   const retryMut = useRetryRecording();
   const deleteSourceMut = useDeleteRecordingSource();
   const cancelMut = useCancelRecording();
+  const confirm = useConfirm();
   const status = STATUS_META[r.status] ?? { color: "neutral", label: r.status };
 
   return (
@@ -67,14 +69,13 @@ export function VodRecordingRow({ recording: r, stream: s }: VodRecordingRowProp
         {(r.status === "vod_queued" || r.status === "vod_downloading") && (
           <Button
             variant="default"
-            onClick={() => {
+            onClick={async () => {
               const msg =
                 r.status === "vod_downloading"
                   ? "Cancel this download? The partial file will be discarded."
                   : "Remove this from the queue?";
-              if (window.confirm(msg)) {
-                cancelMut.mutate(r.id);
-              }
+              const ok = await confirm({ message: msg, confirmLabel: "Cancel download" });
+              if (ok) cancelMut.mutate(r.id);
             }}
             disabled={cancelMut.isPending}
           >
@@ -94,10 +95,13 @@ export function VodRecordingRow({ recording: r, stream: s }: VodRecordingRowProp
         {r.status === "complete" && !r.source_deleted && (
           <Button
             variant="default"
-            onClick={() => {
-              if (window.confirm("Delete source file? Cannot be undone.")) {
-                deleteSourceMut.mutate(r.id);
-              }
+            onClick={async () => {
+              const ok = await confirm({
+                message: "Delete source file? Cannot be undone.",
+                confirmLabel: "Delete",
+                destructive: true,
+              });
+              if (ok) deleteSourceMut.mutate(r.id);
             }}
             disabled={deleteSourceMut.isPending}
           >

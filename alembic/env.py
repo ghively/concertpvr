@@ -1,9 +1,9 @@
 """Alembic migration env — pulls DB URL from concertpvr.config."""
 from logging.config import fileConfig
 
-from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+from alembic import context
 from concertpvr.config import Config
 from concertpvr.models import Base
 
