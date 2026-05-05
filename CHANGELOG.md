@@ -1,5 +1,144 @@
 # Changelog
 
+## v0.4.1 — 2026-05-05
+
+Closes the four "Tier 3" deferred items from `jules.md` — every long-standing
+TODO that was outside v0.4.0 scope is now implemented.
+
+### Added — Like counts (Wave A)
+
+- `probe_video_metadata` now also returns `like_count` alongside `view_count`
+  in the slow-refresh path. The `BacklogItem` schema gains `like_count: int |
+  None` and the backlog GET supports `sort=most_liked`. Frontend's
+  BacklogBrowser exposes a "Most liked" sort chip and renders likes inline
+  with views on each card. Items where YouTube hides the like count sort
+  last (same pattern as `most_viewed`).
+
+### Added — Auto Emby path translation (Wave B)
+
+- New settings `emby_path_local_prefix` and `emby_path_emby_prefix`. When
+  set, the publisher rewrites the on-disk path it sends to Emby's library
+  refresh endpoint by swapping the local prefix for the Emby prefix. Lets
+  concertpvr running in a Docker container talk correctly to an Emby that
+  sees the same files at a different mount path (e.g., `/data/publish` →
+  `/volume1/media/concerts`, or `/data/publish` → `Z:\Media\Concerts` for
+  a Windows Emby host). Both null = pass-through; partial matches stay as-is.
+- Settings UI gains two new path translation fields with explainer copy.
+
+### Added — Setlist.fm integration (Wave C)
+
+- New module `src/concertpvr/setlistfm.py` with `lookup_setlist(artist,
+  date, *, api_key)` calling the setlist.fm REST API. Returns a normalized
+  song list or `None` for "no match"; raises `SetlistFmError` on transport
+  / 5xx failures.
+- New per-watcher toggle `extract_setlist_from_setlistfm` and global
+  setting `setlistfm_api_key`. The URL-paste flow runs setlist.fm as a
+  fourth detection tier (after chapters, description, and comments) when
+  both the API key and the per-watcher toggle are set. The toggle defaults
+  to **off**; without an API key the tier is skipped regardless.
+
+### Added — YouTube DVR-window scraping (Wave D)
+
+- New endpoint `POST /api/streams/{id}/dvr-pull` (live streams only —
+  rejects with 409 for `kind="video"`). Creates a Recording with status
+  `vod_queued` and a filename prefix `dvr-…` that the queue handler reads
+  as a discriminator to pass `--live-from-start` to yt-dlp. The download
+  flows through the existing VOD pipeline; once complete it segments and
+  publishes like any other VOD recording.
+- `VodDownloader.download` gains a `live_from_start: bool` flag.
+- Sources page exposes a "Pull DVR" button on each live stream row, with
+  a confirm dialog that explains the constraint (only works while the
+  broadcast is live and has a DVR window).
+
+### Schema
+
+- Migration `0010_emby_path_translation` — additive only:
+  `settings.emby_path_local_prefix`, `settings.emby_path_emby_prefix`,
+  `settings.setlistfm_api_key`, and `channel_watchers.extract_setlist_from_setlistfm`.
+
+### Tests
+
+- 24 new tests across 6 new files: `test_emby_path_translation`,
+  `test_setlistfm`, `test_dvr_pull_api`, `test_vod_downloader_dvr`,
+  `test_backlog_like_count`, `test_migration_0010`.
+- Backend: 336 passed, 4 skipped. ruff/format/mypy clean. Frontend: tsc +
+  vite build clean. Migration upgrade + downgrade verified.
+
+---
+
+## v0.4.0 — 2026-05-05
+
+Wrap-up release closing the v0.3.4/v0.4 punch list from `jules.md`. Six
+shippable features, no schema changes, 24 new tests (312 total).
+
+### Added — VOD lifecycle controls
+
+- **Cancel a running VOD download.** `POST /api/recordings/{id}/cancel`
+  SIGTERMs the yt-dlp subprocess; the queue worker observes `VodCancelled`
+  and writes a new terminal status `vod_cancelled`. Also handles
+  `vod_queued` rows by skipping the handler when the worker pops them.
+  Frontend exposes a Cancel button on `/recordings/vod` for both states.
+- **Slow-refresh cancellation + resumption.** `POST
+  /api/channel-watchers/{id}/backlog/refresh/cancel` flips a module-level
+  flag the slow-refresh loop checks between batches; partial view-count
+  progress is preserved as `cache.status='cancelled'`. Clicking Refresh
+  again from that state resumes from where the user stopped — items that
+  already have a `view_count` are skipped on the second pass. Frontend
+  shows a Cancel button during fetching and a Resume banner when
+  cancelled.
+- **Most viewed sort chip restored.** Was added to the backend in v0.3.3
+  but the frontend's `SortMode` had not been extended.
+
+### Added — Library / publishing
+
+- **Bulk-retry failed publishes.** `POST /api/segments/bulk-publish`
+  accepts a list of `segment_ids` and continues past per-row failures,
+  returning a per-segment status. Library page surfaces a banner when
+  any publish_failed segments exist with a one-click retry.
+- **Recording → Schedule reverse lookup.** `GET
+  /api/recordings/{id}/schedule` returns the Schedule row that produced a
+  given Recording (or `null` for ad-hoc recordings). Closes the v0.1
+  limitation note without a migration; `Schedule.recording_id` was
+  already indexed.
+
+### Added — UX
+
+- **Calendar grid view for the Schedule page.** Toggle between List and
+  Calendar; preference persisted in `localStorage`. Month grid with
+  prev/next/today nav, status-coloured event chips, and click-through to
+  the existing detail panel. List view (the v0.3 grouped-by-day layout)
+  is unchanged.
+
+### Security
+
+- **WebSocket auth gate.** `/ws/streams/{id}/progress` and
+  `/ws/recordings/{id}/progress` now apply the same auth check as HTTP
+  routes when a password is configured. Connections without a valid
+  `cpvr_session` cookie are closed with policy code 1008. When no
+  password is set, the endpoints remain open (matches HTTP behaviour).
+
+### Fixed
+
+- `VodCancelled` was double-defined (in `vod_queue` and `vod_downloader`)
+  causing the queue worker's `except` to miss the exception raised from
+  the downloader. Consolidated to a single class re-exported from
+  `vod_queue`.
+
+### Tests
+
+- 24 new tests across six new files covering each shipped feature:
+  `test_vod_queue_cancel`, `test_recordings_cancel_api`,
+  `test_backlog_slow_refresh_cancel`, `test_ws_auth`,
+  `test_recording_schedule_lookup`, `test_segments_bulk_publish`.
+- Backend: 312 passed, 4 skipped (env-gated integration). ruff/format/mypy
+  clean. Frontend: tsc + vite build clean.
+
+### No schema changes
+
+Migration count stays at 9 (0001…0009).
+
+---
+
 ## v0.3.3 — 2026-04-27
 
 Bug sweep + Most viewed backlog sort.

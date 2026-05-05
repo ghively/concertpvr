@@ -11,7 +11,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response,
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from concertpvr.backlog_cache import fetch_full_channel, is_stale
+from concertpvr.backlog_cache import (
+    fetch_full_channel,
+    is_stale,
+)
+from concertpvr.backlog_cache import (
+    request_cancel as request_backlog_cancel,
+)
 from concertpvr.db import Database
 from concertpvr.deps import get_db
 from concertpvr.models import ChannelBacklogCache, ChannelWatcher, Recording, Stream
@@ -201,6 +207,28 @@ async def refresh_watcher_backlog(
     return {"status": "fetching", "started": True}
 
 
+@router.post(
+    "/channel-watchers/{watcher_id}/backlog/refresh/cancel",
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def cancel_watcher_backlog_refresh(
+    watcher_id: int,
+    db: Database = Depends(get_db),  # noqa: B008
+) -> dict[str, str]:
+    """Ask the running slow-refresh for this watcher to stop after its next batch.
+
+    Idempotent: if no refresh is running, the request is dropped. The cache
+    transitions to `cancelled` with whatever partial progress was made; the
+    next /refresh call resumes from where it stopped.
+    """
+    with db.session() as s:
+        watcher = s.get(ChannelWatcher, watcher_id)
+        if watcher is None:
+            raise HTTPException(status_code=404, detail="watcher not found")
+    request_backlog_cancel(watcher_id)
+    return {"status": "cancel_requested"}
+
+
 @router.get(
     "/channel-watchers/{watcher_id}/backlog",
     response_model=list[BacklogItem],
@@ -210,7 +238,7 @@ async def get_watcher_backlog(
     request: Request,
     limit: int = Query(50, ge=1, le=200),  # noqa: B008
     offset: int = Query(0, ge=0),  # noqa: B008
-    sort: Literal["newest", "longest", "oldest", "most_viewed"] = Query("newest"),  # noqa: B008
+    sort: Literal["newest", "longest", "oldest", "most_viewed", "most_liked"] = Query("newest"),  # noqa: B008
     q: str | None = Query(None),  # noqa: B008
     db: Database = Depends(get_db),  # noqa: B008
 ) -> list[BacklogItem]:
@@ -270,6 +298,13 @@ async def get_watcher_backlog(
             return int(v) if isinstance(v, (int, float)) else -1
 
         items_raw = sorted(items_raw, key=_vc, reverse=True)
+    elif sort == "most_liked":
+
+        def _lc(it: dict[str, object]) -> int:
+            v = it.get("like_count")
+            return int(v) if isinstance(v, (int, float)) else -1
+
+        items_raw = sorted(items_raw, key=_lc, reverse=True)
     # "newest" — preserve existing order (yt-dlp returns newest first).
 
     page = items_raw[offset : offset + limit]
@@ -321,6 +356,11 @@ async def get_watcher_backlog(
             int(view_count_raw) if isinstance(view_count_raw, (int, float)) else None
         )
 
+        like_count_raw = it.get("like_count")
+        like_count_val: int | None = (
+            int(like_count_raw) if isinstance(like_count_raw, (int, float)) else None
+        )
+
         result.append(
             BacklogItem(
                 youtube_id=yid,
@@ -330,6 +370,7 @@ async def get_watcher_backlog(
                 upload_date=upload_date_val,
                 duration_s=duration_s_val,
                 view_count=view_count_val,
+                like_count=like_count_val,
                 state=state,
             )
         )

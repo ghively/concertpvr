@@ -31,6 +31,12 @@ class Settings(Base):
     emby_url: Mapped[str | None] = mapped_column(String, nullable=True)
     emby_api_key: Mapped[str | None] = mapped_column(String, nullable=True)
     emby_library_path: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Path translation (v0.4.1): when concertpvr writes to a path that Emby
+    # sees at a different mount, set both. The publisher uses these to map
+    # the local target dir → the path Emby will recognize on a refresh poke.
+    # Empty/null on either side means "no translation; pass paths through".
+    emby_path_local_prefix: Mapped[str | None] = mapped_column(String, nullable=True)
+    emby_path_emby_prefix: Mapped[str | None] = mapped_column(String, nullable=True)
 
     # Publish naming
     folder_pattern: Mapped[str] = mapped_column(
@@ -59,6 +65,10 @@ class Settings(Base):
     auto_delete_source_after_publish: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=sa.false()
     )
+
+    # Setlist.fm integration (v0.4.1) — optional REST API key for the setlist
+    # detection fallback tier. Without a key, the setlist.fm tier is skipped.
+    setlistfm_api_key: Mapped[str | None] = mapped_column(String, nullable=True)
 
 
 class Stream(Base):
@@ -260,6 +270,9 @@ class ChannelWatcher(Base):
         Boolean, nullable=False, default=False, server_default=sa.false()
     )
     extract_setlist_from_comments: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=sa.false()
+    )
+    extract_setlist_from_setlistfm: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=sa.false()
     )
     default_genres: Mapped[str | None] = mapped_column(String, nullable=True)

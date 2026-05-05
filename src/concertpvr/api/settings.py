@@ -47,6 +47,11 @@ def patch_settings(
 
     from concertpvr.emby import EmbyClient
 
-    request.app.state.emby_client = EmbyClient(row.emby_url, row.emby_api_key)
+    request.app.state.emby_client = EmbyClient(
+        row.emby_url,
+        row.emby_api_key,
+        local_prefix=row.emby_path_local_prefix,
+        emby_prefix=row.emby_path_emby_prefix,
+    )
 
     return row

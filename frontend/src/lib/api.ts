@@ -36,6 +36,9 @@ export type Settings = {
   emby_url: string | null;
   emby_api_key: string | null;
   emby_library_path: string | null;
+  // Path translation (v0.4.1)
+  emby_path_local_prefix: string | null;
+  emby_path_emby_prefix: string | null;
   folder_pattern: string;
   default_quality: string;
   default_retention_days: number;
@@ -45,6 +48,8 @@ export type Settings = {
   // VOD fields (v0.3)
   max_concurrent_vod_downloads: number;
   auto_delete_source_after_publish: boolean;
+  // Setlist.fm (v0.4.1)
+  setlistfm_api_key: string | null;
 };
 
 export type SettingsPatch = Partial<Settings>;
@@ -70,7 +75,6 @@ export type Stream = {
   // VOD metadata (v0.3)
   description?: string | null;
   original_upload_date?: string | null;
-  duration_s?: number | null;
   youtube_tags?: string[] | null;
   detected_setlist_text?: string | null;
   detected_setlist_source?: string | null;
@@ -81,6 +85,8 @@ export const streamsApi = {
   get: (id: number) => api.get<Stream>(`/api/streams/${id}`),
   create: (url: string) => api.post<Stream>("/api/streams", { url }),
   delete: (id: number) => api.delete<void>(`/api/streams/${id}`),
+  dvrPull: (id: number) =>
+    api.post<{ recording_id: number }>(`/api/streams/${id}/dvr-pull`, {}),
 };
 
 // ── Watch subscriptions ─────────────────────────────────────────────────────
@@ -111,7 +117,8 @@ export type RecordingStatus =
   | "interrupted"
   | "vod_queued"
   | "vod_downloading"
-  | "vod_failed";
+  | "vod_failed"
+  | "vod_cancelled";
 
 export type Recording = {
   id: number;
@@ -142,6 +149,10 @@ export const recordingsApi = {
     return api.get<Recording[]>(`/api/recordings${qs}`);
   },
   get: (id: number) => api.get<Recording>(`/api/recordings/${id}`),
+  getSchedule: (id: number) =>
+    api.get<Schedule | null>(`/api/recordings/${id}/schedule`),
+  cancel: (id: number) =>
+    api.post<{ status: string; previous: string }>(`/api/recordings/${id}/cancel`, {}),
 };
 
 // ── Segments ────────────────────────────────────────────────────────────────
@@ -190,6 +201,25 @@ export type PublishOptions = {
   year?: number | null;
 };
 
+export type BulkPublishRequest = {
+  segment_ids: number[];
+  festival?: string | null;
+  venue?: string | null;
+  year?: number | null;
+};
+
+export type BulkPublishItemResult = {
+  segment_id: number;
+  status: "published" | "failed";
+  error: string | null;
+};
+
+export type BulkPublishResponse = {
+  results: BulkPublishItemResult[];
+  succeeded: number;
+  failed: number;
+};
+
 export const segmentsApi = {
   list: (recordingId: number) =>
     api.get<Segment[]>(`/api/segments?recording_id=${recordingId}`),
@@ -198,6 +228,8 @@ export const segmentsApi = {
   delete: (id: number) => api.delete<void>(`/api/segments/${id}`),
   publish: (id: number, opts: PublishOptions) =>
     api.post<Segment>(`/api/segments/${id}/publish`, opts),
+  bulkPublish: (p: BulkPublishRequest) =>
+    api.post<BulkPublishResponse>("/api/segments/bulk-publish", p),
 };
 
 // ── Setlists ────────────────────────────────────────────────────────────────
@@ -332,6 +364,7 @@ export type ChannelWatcher = {
   default_genres: string | null;
   auto_publish: boolean;
   extract_setlist_from_comments: boolean;
+  extract_setlist_from_setlistfm: boolean;
   auto_delete_source_after_publish: boolean | null;
 };
 
@@ -359,6 +392,7 @@ export type ChannelWatcherPatch = {
   default_genres?: string | null;
   auto_publish?: boolean;
   extract_setlist_from_comments?: boolean;
+  extract_setlist_from_setlistfm?: boolean;
   auto_delete_source_after_publish?: boolean | null;
 };
 
@@ -380,7 +414,12 @@ export const watchersApi = {
 
 // ── Backlog ──────────────────────────────────────────────────────────────────
 
-export type BacklogCacheStatus = "never_fetched" | "fetching" | "complete" | "error";
+export type BacklogCacheStatus =
+  | "never_fetched"
+  | "fetching"
+  | "complete"
+  | "error"
+  | "cancelled";
 
 export interface BacklogCacheState {
   status: BacklogCacheStatus;
@@ -401,6 +440,7 @@ export type BacklogItem = {
   upload_date: string | null;
   duration_s: number | null;
   view_count: number | null;
+  like_count: number | null;
   state: BacklogItemState;
 };
 

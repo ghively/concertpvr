@@ -135,22 +135,22 @@ async def create_stream(
         from concertpvr.models import ChannelWatcher
 
         with db.session() as s:
-            watcher = s.scalar(
+            comments_watcher = s.scalar(
                 select(ChannelWatcher).where(
                     ChannelWatcher.channel_url == info.url,  # Fallback, see next line
                     ChannelWatcher.extract_setlist_from_comments == True,  # noqa: E712
                 )
             )
             # Try to match the URL or just find by channel name if url does not match
-            if watcher is None and info.channel_name:
-                watcher = s.scalar(
+            if comments_watcher is None and info.channel_name:
+                comments_watcher = s.scalar(
                     select(ChannelWatcher).where(
                         ChannelWatcher.channel_name == info.channel_name,
                         ChannelWatcher.extract_setlist_from_comments == True,  # noqa: E712
                     )
                 )
 
-        if watcher is not None:
+        if comments_watcher is not None:
             import asyncio
 
             from concertpvr.ytdlp import _extract_sync
@@ -158,7 +158,9 @@ async def create_stream(
             try:
                 # _extract_sync takes url, cookies_path, fetch_comments
                 cookies_str = str(cookies) if cookies else None
-                comments_info = await asyncio.to_thread(_extract_sync, info.url, cookies_str, fetch_comments=True)
+                comments_info = await asyncio.to_thread(
+                    _extract_sync, info.url, cookies_str, fetch_comments=True
+                )
                 comments_raw = comments_info.get("comments")
                 if comments_raw and isinstance(comments_raw, list):
                     from concertpvr.setlist_detector import detect_in_comments
@@ -168,6 +170,43 @@ async def create_stream(
                         detected_text = detected.raw_text
                         detected_source = "comments"
             except Exception:  # noqa: BLE001
+                pass
+
+    # Tier 4 (final fallback): setlist.fm. Same per-watcher gate as comments.
+    if not info.is_live and detected_source is None and info.original_upload_date:
+        from concertpvr.models import ChannelWatcher
+
+        with db.session() as s:
+            settings_row = s.get(SettingsModel, 1)
+            api_key = settings_row.setlistfm_api_key if settings_row else None
+
+            sfm_watcher = s.scalar(
+                select(ChannelWatcher).where(
+                    ChannelWatcher.channel_url == info.url,
+                    ChannelWatcher.extract_setlist_from_setlistfm == True,  # noqa: E712
+                )
+            )
+            if sfm_watcher is None and info.channel_name:
+                sfm_watcher = s.scalar(
+                    select(ChannelWatcher).where(
+                        ChannelWatcher.channel_name == info.channel_name,
+                        ChannelWatcher.extract_setlist_from_setlistfm == True,  # noqa: E712
+                    )
+                )
+
+        if api_key and sfm_watcher is not None:
+            from concertpvr.setlistfm import SetlistFmError, lookup_setlist
+
+            # Use the channel name as the artist hint by default; it's the
+            # closest signal we have without per-video heuristics.
+            try:
+                sfm = await lookup_setlist(
+                    info.channel_name, info.original_upload_date, api_key=api_key
+                )
+                if sfm is not None and sfm.songs:
+                    detected_text = "\n".join(s.title for s in sfm.songs)
+                    detected_source = "setlistfm"
+            except SetlistFmError:
                 pass
 
     rec_id: int | None = None
@@ -224,6 +263,57 @@ async def create_stream(
         await request.app.state.vod_queue.enqueue(rec_id)
 
     return row
+
+
+@router.post(
+    "/streams/{stream_id}/dvr-pull",
+    status_code=status.HTTP_201_CREATED,
+)
+async def dvr_pull(
+    stream_id: int,
+    request: Request,
+    db: Database = Depends(get_db),  # noqa: B008
+) -> dict[str, int]:
+    """Capture a finite chunk of an active live stream from the start of
+    YouTube's DVR window.
+
+    Only valid while the broadcast is live. Creates a Recording row and
+    enqueues it on the VOD queue; the queue handler runs yt-dlp with
+    --live-from-start. Once captured, the result behaves like any other VOD
+    recording — segmentation + publish work the same way.
+
+    Returns: {"recording_id": int} (201).
+
+    Raises 409 if the stream is not a live broadcast.
+    """
+    with db.session() as s:
+        stream = s.get(Stream, stream_id)
+        if stream is None:
+            raise HTTPException(status_code=404, detail="stream not found")
+        if stream.kind != "live":
+            raise HTTPException(
+                status_code=409,
+                detail="dvr-pull only valid for kind=live streams (current kind: "
+                + stream.kind
+                + ")",
+            )
+        # Use a `dvr-` filename prefix as the discriminator the handler reads
+        # to decide whether to pass --live-from-start. No new schema needed.
+        staging_dir = _Path(request.app.state.config.staging_dir)
+        output_path = staging_dir / f"dvr-{stream.youtube_id}.%(ext)s"
+        rec = Recording(
+            stream_id=stream.id,
+            started_at=_dt.datetime.now(_dt.UTC),
+            path=str(output_path),
+            status="vod_queued",
+            is_buffer=False,
+        )
+        s.add(rec)
+        s.flush()
+        rec_id = rec.id
+
+    await request.app.state.vod_queue.enqueue(rec_id)
+    return {"recording_id": rec_id}
 
 
 @router.get("/streams", response_model=list[StreamRead])

@@ -95,6 +95,7 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
     from concertpvr.models import Stream as _Stream
     from concertpvr.process import AsyncSubprocessRunner as _AsyncSubprocessRunner
     from concertpvr.recording_starter import _resolve_cookies_path as _resolve_cookies
+    from concertpvr.vod_downloader import VodCancelled as _VodCancelled
     from concertpvr.vod_downloader import VodDownloader as _VodDownloader
     from concertpvr.vod_downloader import VodDownloadError as _VodDownloadError
     from concertpvr.vod_downloader import VodProgress as _VodProgress
@@ -134,6 +135,18 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
             )
 
         downloader = _VodDownloader(runner=_AsyncSubprocessRunner())
+
+        def _on_spawn(proc: object) -> None:
+            from concertpvr.process import ManagedProcess
+
+            if isinstance(proc, ManagedProcess):
+                app.state.vod_queue.register_running(rec_id, proc)
+
+        # DVR pull discriminator: the API endpoint that creates DVR-pull rows
+        # uses a "dvr-" prefix on the output filename so the handler knows to
+        # pass --live-from-start without needing a new column or table.
+        is_dvr_pull = _PathVod(output_path).name.startswith("dvr-")
+
         try:
             await downloader.download(
                 url=url,
@@ -141,14 +154,24 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
                 quality_format=quality,
                 cookies_path=cookies_path,
                 on_progress=on_progress,
+                on_spawn=_on_spawn,
+                live_from_start=is_dvr_pull,
             )
+        except _VodCancelled:
+            # Re-raise so the queue worker marks vod_cancelled and skips the
+            # post-download bookkeeping (probe / auto-publish).
+            app.state.vod_queue.unregister_running(rec_id)
+            raise
         except _VodDownloadError as e:
+            app.state.vod_queue.unregister_running(rec_id)
             with app.state.db.session() as s:
                 rec = s.get(_Recording, rec_id)
                 if rec is not None:
                     rec.status = "vod_failed"
                     rec.error = str(e)[:500]
             return
+        finally:
+            app.state.vod_queue.unregister_running(rec_id)
 
         # Resolve the actual on-disk filename. The Recording.path stored at
         # queue-time is a yt-dlp template like "vod-<id>.%(ext)s" — yt-dlp picks
@@ -250,11 +273,18 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
         settings_row = s.get(SettingsModel, 1)
         emby_url = settings_row.emby_url if settings_row else None
         emby_key = settings_row.emby_api_key if settings_row else None
+        emby_local_prefix = settings_row.emby_path_local_prefix if settings_row else None
+        emby_emby_prefix = settings_row.emby_path_emby_prefix if settings_row else None
         folder_pattern = (
             settings_row.folder_pattern if settings_row else "{artist} - {festival} ({year})"
         )
 
-    app.state.emby_client = EmbyClient(emby_url, emby_key)
+    app.state.emby_client = EmbyClient(
+        emby_url,
+        emby_key,
+        local_prefix=emby_local_prefix,
+        emby_prefix=emby_emby_prefix,
+    )
 
     def _publisher_factory() -> PublishWorker:
         return PublishWorker(
@@ -320,7 +350,7 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="concertpvr", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="concertpvr", version="0.4.1", lifespan=lifespan)
 
     from concertpvr.api.auth import AuthMiddleware
 

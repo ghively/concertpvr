@@ -1,8 +1,13 @@
 import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { PosterCard } from "@/components/PosterCard";
-import { usePublishedSegments } from "@/lib/query";
+import {
+  usePublishedSegments,
+  useFailedSegments,
+  useBulkPublish,
+} from "@/lib/query";
 import { COMMON_GENRES } from "@/lib/genres";
 import type { Segment } from "@/lib/api";
 
@@ -76,11 +81,22 @@ function Chip({
 
 export default function LibraryPage() {
   const { data, isLoading } = usePublishedSegments();
+  const { data: failed } = useFailedSegments();
+  const bulkPublish = useBulkPublish();
   const [textFilter, setTextFilter] = useState("");
   const [yearFilter, setYearFilter] = useState<YearFilter>("All");
   const [selectedGenres, setSelectedGenres] = useState<Set<string>>(new Set());
+  const [retrySummary, setRetrySummary] = useState<{ succeeded: number; failed: number } | null>(
+    null,
+  );
 
   const genreOptions = useMemo(() => Array.from(new Set(COMMON_GENRES)).sort(), []);
+
+  const handleBulkRetry = async () => {
+    if (!failed || failed.length === 0) return;
+    const res = await bulkPublish.mutateAsync(failed.map((s) => s.id));
+    setRetrySummary({ succeeded: res.succeeded, failed: res.failed });
+  };
 
   const visible = useMemo(() => {
     return (data ?? []).filter((seg) => {
@@ -123,6 +139,40 @@ export default function LibraryPage() {
           onChange={(e) => setTextFilter(e.target.value)}
         />
       </div>
+
+      {failed && failed.length > 0 && (
+        <Card className="mb-4 border-amber/40 bg-amber/5">
+          <div className="flex items-start gap-3">
+            <div className="flex-1">
+              <div className="text-sm font-medium text-amber">
+                {failed.length} segment{failed.length === 1 ? "" : "s"} failed to publish
+              </div>
+              <div className="text-xs text-ink-dim mt-1">
+                Most often a transient ffmpeg or Emby reachability issue. Bulk-retry will
+                attempt each segment again with default options.
+              </div>
+              {retrySummary && (
+                <div className="text-xs mt-2">
+                  Retry result:{" "}
+                  <span className="text-sage">{retrySummary.succeeded} published</span>
+                  {retrySummary.failed > 0 && (
+                    <>
+                      , <span className="text-red-400">{retrySummary.failed} still failed</span>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+            <Button
+              variant="default"
+              onClick={handleBulkRetry}
+              disabled={bulkPublish.isPending}
+            >
+              {bulkPublish.isPending ? "Retrying…" : `Retry ${failed.length}`}
+            </Button>
+          </div>
+        </Card>
+      )}
 
       {/* Year filter row */}
       <div className="flex items-center gap-2 mb-2 flex-wrap">
