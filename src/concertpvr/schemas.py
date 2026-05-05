@@ -15,6 +15,10 @@ class SettingsRead(BaseModel):
     emby_url: str | None
     emby_api_key: str | None
     emby_library_path: str | None
+    # v0.4.1 — path translation between concertpvr's publish_dir and the
+    # path Emby sees on its filesystem. Both null = no translation.
+    emby_path_local_prefix: str | None = None
+    emby_path_emby_prefix: str | None = None
     folder_pattern: str
     default_quality: str
     default_retention_days: int
@@ -24,6 +28,8 @@ class SettingsRead(BaseModel):
     # VOD settings (v0.3)
     max_concurrent_vod_downloads: int
     auto_delete_source_after_publish: bool
+    # Setlist.fm fallback (v0.4.1)
+    setlistfm_api_key: str | None = None
 
 
 class SettingsPatch(BaseModel):
@@ -34,6 +40,8 @@ class SettingsPatch(BaseModel):
     emby_url: str | None = None
     emby_api_key: str | None = None
     emby_library_path: str | None = None
+    emby_path_local_prefix: str | None = None
+    emby_path_emby_prefix: str | None = None
     folder_pattern: str | None = None
     default_quality: str | None = None
     default_retention_days: int | None = None
@@ -44,6 +52,9 @@ class SettingsPatch(BaseModel):
     # VOD settings (v0.3)
     max_concurrent_vod_downloads: int | None = Field(default=None, ge=1, le=8)
     auto_delete_source_after_publish: bool | None = None
+
+    # Setlist.fm fallback (v0.4.1)
+    setlistfm_api_key: str | None = None
 
     @field_validator("folder_pattern")
     @classmethod
@@ -291,8 +302,10 @@ class BacklogItem(BaseModel):
     thumbnail_url: str | None
     upload_date: _dt.date | None
     duration_s: int | None
-    # view_count is always None: yt-dlp flat-extract doesn't return view counts cheaply
+    # view_count + like_count populated only by the slow-refresh path
+    # (probe_views=true). Flat-extract doesn't return either cheaply.
     view_count: int | None
+    like_count: int | None = None
     state: Literal["downloaded", "queued", "not_downloaded"]
 
 
@@ -326,6 +339,7 @@ class ChannelWatcherRead(BaseModel):
     vod_artist_regex: str | None
     auto_publish: bool
     extract_setlist_from_comments: bool
+    extract_setlist_from_setlistfm: bool = False
     default_genres: str | None
     auto_delete_source_after_publish: bool | None
 
@@ -360,6 +374,7 @@ class ChannelWatcherPatch(BaseModel):
     vod_artist_regex: str | None = None
     auto_publish: bool | None = None
     extract_setlist_from_comments: bool | None = None
+    extract_setlist_from_setlistfm: bool | None = None
     default_genres: str | None = None
     auto_delete_source_after_publish: bool | None = None
 

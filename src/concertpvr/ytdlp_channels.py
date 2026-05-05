@@ -22,6 +22,7 @@ class ChannelProbeError(Exception):
 class ProbeResult:
     youtube_id: str
     view_count: int | None
+    like_count: int | None = None
 
 
 async def probe_video_metadata(
@@ -29,9 +30,11 @@ async def probe_video_metadata(
     *,
     cookies_path: str | None = None,
 ) -> ProbeResult:
-    """Single-video full-extract for view_count.
+    """Single-video full-extract for view_count + like_count.
 
-    Returns view_count=None on any failure (private/deleted/rate-limited).
+    Both counts are None on any failure (private/deleted/rate-limited) and
+    `like_count` is also None for any video where the creator has hidden
+    likes (common on Music tracks; YouTube's default for many channels).
     Never raises — failures are recorded as missing data.
     """
     url = f"https://www.youtube.com/watch?v={youtube_id}"
@@ -41,10 +44,16 @@ async def probe_video_metadata(
         info = await asyncio.to_thread(_extract_sync, url, cookies_path, False)
         vc = info.get("view_count")
         view_count = int(vc) if isinstance(vc, (int, float)) else None
-        return ProbeResult(youtube_id=youtube_id, view_count=view_count)
+        lc = info.get("like_count")
+        like_count = int(lc) if isinstance(lc, (int, float)) else None
+        return ProbeResult(
+            youtube_id=youtube_id,
+            view_count=view_count,
+            like_count=like_count,
+        )
     except Exception:  # noqa: BLE001
         logger.warning("probe_video_metadata failed for %s", youtube_id, exc_info=True)
-        return ProbeResult(youtube_id=youtube_id, view_count=None)
+        return ProbeResult(youtube_id=youtube_id, view_count=None, like_count=None)
 
 
 @dataclass(frozen=True)

@@ -238,7 +238,7 @@ async def get_watcher_backlog(
     request: Request,
     limit: int = Query(50, ge=1, le=200),  # noqa: B008
     offset: int = Query(0, ge=0),  # noqa: B008
-    sort: Literal["newest", "longest", "oldest", "most_viewed"] = Query("newest"),  # noqa: B008
+    sort: Literal["newest", "longest", "oldest", "most_viewed", "most_liked"] = Query("newest"),  # noqa: B008
     q: str | None = Query(None),  # noqa: B008
     db: Database = Depends(get_db),  # noqa: B008
 ) -> list[BacklogItem]:
@@ -298,6 +298,13 @@ async def get_watcher_backlog(
             return int(v) if isinstance(v, (int, float)) else -1
 
         items_raw = sorted(items_raw, key=_vc, reverse=True)
+    elif sort == "most_liked":
+
+        def _lc(it: dict[str, object]) -> int:
+            v = it.get("like_count")
+            return int(v) if isinstance(v, (int, float)) else -1
+
+        items_raw = sorted(items_raw, key=_lc, reverse=True)
     # "newest" — preserve existing order (yt-dlp returns newest first).
 
     page = items_raw[offset : offset + limit]
@@ -349,6 +356,11 @@ async def get_watcher_backlog(
             int(view_count_raw) if isinstance(view_count_raw, (int, float)) else None
         )
 
+        like_count_raw = it.get("like_count")
+        like_count_val: int | None = (
+            int(like_count_raw) if isinstance(like_count_raw, (int, float)) else None
+        )
+
         result.append(
             BacklogItem(
                 youtube_id=yid,
@@ -358,6 +370,7 @@ async def get_watcher_backlog(
                 upload_date=upload_date_val,
                 duration_s=duration_s_val,
                 view_count=view_count_val,
+                like_count=like_count_val,
                 state=state,
             )
         )

@@ -13,11 +13,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import { watchersKeys } from "@/lib/query";
 import { cn } from "@/lib/utils";
 
-type SortMode = "newest" | "most_viewed" | "longest" | "oldest";
+type SortMode = "newest" | "most_viewed" | "most_liked" | "longest" | "oldest";
 
 const SORT_LABELS: { value: SortMode; label: string }[] = [
   { value: "newest", label: "Newest" },
   { value: "most_viewed", label: "Most viewed" },
+  { value: "most_liked", label: "Most liked" },
   { value: "longest", label: "Longest" },
   { value: "oldest", label: "Oldest" },
 ];
@@ -51,6 +52,13 @@ function fmtViews(n: number | null): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M views`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K views`;
   return `${n} views`;
+}
+
+function fmtLikes(n: number | null): string {
+  if (n === null) return "";
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M likes`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K likes`;
+  return `${n} likes`;
 }
 
 function BacklogCard({
@@ -110,6 +118,12 @@ function BacklogCard({
             <>
               <span>·</span>
               <span>{fmtViews(item.view_count)}</span>
+            </>
+          )}
+          {item.like_count !== null && (
+            <>
+              <span>·</span>
+              <span>{fmtLikes(item.like_count)}</span>
             </>
           )}
         </div>

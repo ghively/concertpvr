@@ -143,7 +143,11 @@ async def fetch_full_channel_with_views(db: Database, watcher_id: int) -> int:
         existing_items = list(existing.items_json) if existing and existing.items_json else []
         existing_status = existing.status if existing else "never_fetched"
 
-    has_partial_views = any(isinstance(it.get("view_count"), (int, float)) for it in existing_items)
+    has_partial_views = any(
+        isinstance(it.get("view_count"), (int, float))
+        or isinstance(it.get("like_count"), (int, float))
+        for it in existing_items
+    )
     skip_flat_extract = (
         existing_status == "cancelled" and has_partial_views and len(existing_items) > 0
     )
@@ -160,18 +164,20 @@ async def fetch_full_channel_with_views(db: Database, watcher_id: int) -> int:
         count = await fetch_full_channel(db, watcher_id)
 
     # Step 2: per-video probes in batches, skipping already-probed items.
+    # An item is "probed" once it has either a view_count or like_count (the
+    # probe sets both at once; either being a number means we ran it).
+    def _is_probed(it: dict[str, object]) -> bool:
+        return isinstance(it.get("view_count"), (int, float)) or isinstance(
+            it.get("like_count"), (int, float)
+        )
+
     with db.session() as s:
         cache = s.get(ChannelBacklogCache, watcher_id)
         if cache is None or cache.items_json is None:
             return count
         items = list(cache.items_json)
-        ids_to_probe = [
-            str(it["youtube_id"])
-            for it in items
-            if not isinstance(it.get("view_count"), (int, float))
-        ]
+        ids_to_probe = [str(it["youtube_id"]) for it in items if not _is_probed(it)]
         cache.status = "fetching"
-        # progress_pct reflects "share of items that have view_counts".
         already_probed = len(items) - len(ids_to_probe)
         total_items = len(items)
         cache.progress_pct = int(already_probed / max(total_items, 1) * 100) if total_items else 0
@@ -194,6 +200,7 @@ async def fetch_full_channel_with_views(db: Database, watcher_id: int) -> int:
     cookies_str = str(cookies_path) if cookies_path else None
 
     view_counts: dict[str, int | None] = {}
+    like_counts: dict[str, int | None] = {}
     cancelled = False
 
     for i in range(0, len(ids_to_probe), BATCH_SIZE):
@@ -209,6 +216,7 @@ async def fetch_full_channel_with_views(db: Database, watcher_id: int) -> int:
         for r in results:
             if isinstance(r, ProbeResult):
                 view_counts[r.youtube_id] = r.view_count
+                like_counts[r.youtube_id] = r.like_count
 
         with db.session() as s:
             cache = s.get(ChannelBacklogCache, watcher_id)
@@ -217,11 +225,15 @@ async def fetch_full_channel_with_views(db: Database, watcher_id: int) -> int:
             merged = []
             for it in cache.items_json or []:
                 yid = str(it["youtube_id"])
-                if yid in view_counts:
-                    it = {**it, "view_count": view_counts[yid]}
+                if yid in view_counts or yid in like_counts:
+                    it = {
+                        **it,
+                        "view_count": view_counts.get(yid, it.get("view_count")),
+                        "like_count": like_counts.get(yid, it.get("like_count")),
+                    }
                 merged.append(it)
             cache.items_json = merged
-            done_so_far = sum(1 for it in merged if isinstance(it.get("view_count"), (int, float)))
+            done_so_far = sum(1 for it in merged if _is_probed(it))
             cache.progress_pct = int(done_so_far / max(total_items, 1) * 100)
 
     with db.session() as s:

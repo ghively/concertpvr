@@ -142,6 +142,11 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
             if isinstance(proc, ManagedProcess):
                 app.state.vod_queue.register_running(rec_id, proc)
 
+        # DVR pull discriminator: the API endpoint that creates DVR-pull rows
+        # uses a "dvr-" prefix on the output filename so the handler knows to
+        # pass --live-from-start without needing a new column or table.
+        is_dvr_pull = _PathVod(output_path).name.startswith("dvr-")
+
         try:
             await downloader.download(
                 url=url,
@@ -150,6 +155,7 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
                 cookies_path=cookies_path,
                 on_progress=on_progress,
                 on_spawn=_on_spawn,
+                live_from_start=is_dvr_pull,
             )
         except _VodCancelled:
             # Re-raise so the queue worker marks vod_cancelled and skips the
@@ -267,11 +273,18 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
         settings_row = s.get(SettingsModel, 1)
         emby_url = settings_row.emby_url if settings_row else None
         emby_key = settings_row.emby_api_key if settings_row else None
+        emby_local_prefix = settings_row.emby_path_local_prefix if settings_row else None
+        emby_emby_prefix = settings_row.emby_path_emby_prefix if settings_row else None
         folder_pattern = (
             settings_row.folder_pattern if settings_row else "{artist} - {festival} ({year})"
         )
 
-    app.state.emby_client = EmbyClient(emby_url, emby_key)
+    app.state.emby_client = EmbyClient(
+        emby_url,
+        emby_key,
+        local_prefix=emby_local_prefix,
+        emby_prefix=emby_emby_prefix,
+    )
 
     def _publisher_factory() -> PublishWorker:
         return PublishWorker(
@@ -337,7 +350,7 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="concertpvr", version="0.4.0", lifespan=lifespan)
+    app = FastAPI(title="concertpvr", version="0.4.1", lifespan=lifespan)
 
     from concertpvr.api.auth import AuthMiddleware
 

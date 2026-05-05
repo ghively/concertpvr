@@ -7,6 +7,7 @@ import {
   useRecordings,
   useSettings,
   useChannelWatchers,
+  useDvrPull,
 } from "@/lib/query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -234,6 +235,7 @@ function SourceRow({
   const { data: sub } = useWatchSubscription(stream.id);
   const toggle = useToggleWatch(stream.id);
   const del = useDeleteStream();
+  const dvrPull = useDvrPull();
   const confirm = useConfirm();
   const enabled = sub?.enabled ?? false;
 
@@ -265,6 +267,24 @@ function SourceRow({
             title={!enabled && poolFull ? "Max concurrent recordings reached" : undefined}
           >
             {enabled ? "Stop buffer" : poolFull ? "Pool full" : "Start buffer"}
+          </Button>
+        )}
+        {stream.kind === "live" && (
+          <Button
+            variant="default"
+            onClick={async () => {
+              const ok = await confirm({
+                title: "Pull DVR window",
+                message:
+                  "Capture from the start of YouTube's DVR window? Only works while the broadcast is live and YouTube is providing a DVR window. The result becomes a regular VOD recording.",
+                confirmLabel: "Pull",
+              });
+              if (ok) dvrPull.mutate(stream.id);
+            }}
+            disabled={dvrPull.isPending}
+            title="Pull from the start of YouTube's DVR window"
+          >
+            {dvrPull.isPending ? "Queueing…" : "Pull DVR"}
           </Button>
         )}
         <Button

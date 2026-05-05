@@ -89,6 +89,40 @@ export default function SettingsPage() {
             placeholder="/media/concerts"
           />
         </Labeled>
+        <Labeled
+          label="Path translation — concertpvr writes here"
+          help="Set both prefixes if Emby sees the same files at a different mount path. Leave both blank if concertpvr and Emby share the same filesystem view."
+        >
+          <Input
+            className="font-mono"
+            value={merged.emby_path_local_prefix ?? ""}
+            onChange={(e) => field("emby_path_local_prefix")(e.target.value || null)}
+            placeholder="/data/publish"
+          />
+        </Labeled>
+        <Labeled label="Path translation — Emby sees the same files at">
+          <Input
+            className="font-mono"
+            value={merged.emby_path_emby_prefix ?? ""}
+            onChange={(e) => field("emby_path_emby_prefix")(e.target.value || null)}
+            placeholder="/volume1/media/concerts"
+          />
+        </Labeled>
+      </Card>
+
+      <Card className="mb-4 space-y-3">
+        <CardLabel>Setlist.fm</CardLabel>
+        <Labeled
+          label="Setlist.fm REST API key (optional)"
+          help="Enables setlist.fm as a fallback when YouTube chapters/description/comments don't yield a setlist. Per-watcher toggle controls whether this fallback runs. Leave blank to disable."
+        >
+          <Input
+            type="password"
+            className="font-mono"
+            value={merged.setlistfm_api_key ?? ""}
+            onChange={(e) => field("setlistfm_api_key")(e.target.value || null)}
+          />
+        </Labeled>
       </Card>
 
       <Card className="mb-4 space-y-3">

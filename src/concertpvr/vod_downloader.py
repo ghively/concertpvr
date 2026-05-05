@@ -95,12 +95,19 @@ class VodDownloader:
         cookies_path: Path | None,
         on_progress: Callable[[VodProgress], Awaitable[None]] | None,
         on_spawn: Callable[[ManagedProcess], None] | None = None,
+        live_from_start: bool = False,
     ) -> None:
         """Run yt-dlp.
 
         on_spawn: called once with the ManagedProcess after spawn so callers
         can register it for cancellation. SIGTERM on the proc terminates the
         download cleanly and raises VodCancelled.
+
+        live_from_start: pass yt-dlp's --live-from-start option. Only useful
+        for currently-live broadcasts that have a DVR window enabled — fetches
+        from the start of YouTube's DVR window instead of the current edge.
+        Once the broadcast ends, the VOD URL is just a regular VOD; keep this
+        False for those.
         """
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -119,6 +126,8 @@ class VodDownloader:
             "-o",
             str(output_path),
         ]
+        if live_from_start:
+            args.append("--live-from-start")
         if cookies_path:
             args.extend(["--cookies", str(cookies_path)])
         args.append(url)

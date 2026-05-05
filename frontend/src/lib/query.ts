@@ -65,6 +65,16 @@ export function useDeleteStream() {
   });
 }
 
+export function useDvrPull() {
+  const qc = useQueryClient();
+  return useMutation<{ recording_id: number }, Error, number>({
+    mutationFn: (id) => streamsApi.dvrPull(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["recordings"] });
+    },
+  });
+}
+
 export function useWatchSubscription(streamId: number, enabled: boolean = true) {
   return useQuery<WatchSubscription | null>({
     queryKey: keys.watch(streamId),

@@ -1,5 +1,71 @@
 # Changelog
 
+## v0.4.1 — 2026-05-05
+
+Closes the four "Tier 3" deferred items from `jules.md` — every long-standing
+TODO that was outside v0.4.0 scope is now implemented.
+
+### Added — Like counts (Wave A)
+
+- `probe_video_metadata` now also returns `like_count` alongside `view_count`
+  in the slow-refresh path. The `BacklogItem` schema gains `like_count: int |
+  None` and the backlog GET supports `sort=most_liked`. Frontend's
+  BacklogBrowser exposes a "Most liked" sort chip and renders likes inline
+  with views on each card. Items where YouTube hides the like count sort
+  last (same pattern as `most_viewed`).
+
+### Added — Auto Emby path translation (Wave B)
+
+- New settings `emby_path_local_prefix` and `emby_path_emby_prefix`. When
+  set, the publisher rewrites the on-disk path it sends to Emby's library
+  refresh endpoint by swapping the local prefix for the Emby prefix. Lets
+  concertpvr running in a Docker container talk correctly to an Emby that
+  sees the same files at a different mount path (e.g., `/data/publish` →
+  `/volume1/media/concerts`, or `/data/publish` → `Z:\Media\Concerts` for
+  a Windows Emby host). Both null = pass-through; partial matches stay as-is.
+- Settings UI gains two new path translation fields with explainer copy.
+
+### Added — Setlist.fm integration (Wave C)
+
+- New module `src/concertpvr/setlistfm.py` with `lookup_setlist(artist,
+  date, *, api_key)` calling the setlist.fm REST API. Returns a normalized
+  song list or `None` for "no match"; raises `SetlistFmError` on transport
+  / 5xx failures.
+- New per-watcher toggle `extract_setlist_from_setlistfm` and global
+  setting `setlistfm_api_key`. The URL-paste flow runs setlist.fm as a
+  fourth detection tier (after chapters, description, and comments) when
+  both the API key and the per-watcher toggle are set. The toggle defaults
+  to **off**; without an API key the tier is skipped regardless.
+
+### Added — YouTube DVR-window scraping (Wave D)
+
+- New endpoint `POST /api/streams/{id}/dvr-pull` (live streams only —
+  rejects with 409 for `kind="video"`). Creates a Recording with status
+  `vod_queued` and a filename prefix `dvr-…` that the queue handler reads
+  as a discriminator to pass `--live-from-start` to yt-dlp. The download
+  flows through the existing VOD pipeline; once complete it segments and
+  publishes like any other VOD recording.
+- `VodDownloader.download` gains a `live_from_start: bool` flag.
+- Sources page exposes a "Pull DVR" button on each live stream row, with
+  a confirm dialog that explains the constraint (only works while the
+  broadcast is live and has a DVR window).
+
+### Schema
+
+- Migration `0010_emby_path_translation` — additive only:
+  `settings.emby_path_local_prefix`, `settings.emby_path_emby_prefix`,
+  `settings.setlistfm_api_key`, and `channel_watchers.extract_setlist_from_setlistfm`.
+
+### Tests
+
+- 24 new tests across 6 new files: `test_emby_path_translation`,
+  `test_setlistfm`, `test_dvr_pull_api`, `test_vod_downloader_dvr`,
+  `test_backlog_like_count`, `test_migration_0010`.
+- Backend: 336 passed, 4 skipped. ruff/format/mypy clean. Frontend: tsc +
+  vite build clean. Migration upgrade + downgrade verified.
+
+---
+
 ## v0.4.0 — 2026-05-05
 
 Wrap-up release closing the v0.3.4/v0.4 punch list from `jules.md`. Six

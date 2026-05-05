@@ -36,6 +36,9 @@ export type Settings = {
   emby_url: string | null;
   emby_api_key: string | null;
   emby_library_path: string | null;
+  // Path translation (v0.4.1)
+  emby_path_local_prefix: string | null;
+  emby_path_emby_prefix: string | null;
   folder_pattern: string;
   default_quality: string;
   default_retention_days: number;
@@ -45,6 +48,8 @@ export type Settings = {
   // VOD fields (v0.3)
   max_concurrent_vod_downloads: number;
   auto_delete_source_after_publish: boolean;
+  // Setlist.fm (v0.4.1)
+  setlistfm_api_key: string | null;
 };
 
 export type SettingsPatch = Partial<Settings>;
@@ -80,6 +85,8 @@ export const streamsApi = {
   get: (id: number) => api.get<Stream>(`/api/streams/${id}`),
   create: (url: string) => api.post<Stream>("/api/streams", { url }),
   delete: (id: number) => api.delete<void>(`/api/streams/${id}`),
+  dvrPull: (id: number) =>
+    api.post<{ recording_id: number }>(`/api/streams/${id}/dvr-pull`, {}),
 };
 
 // ── Watch subscriptions ─────────────────────────────────────────────────────
@@ -357,6 +364,7 @@ export type ChannelWatcher = {
   default_genres: string | null;
   auto_publish: boolean;
   extract_setlist_from_comments: boolean;
+  extract_setlist_from_setlistfm: boolean;
   auto_delete_source_after_publish: boolean | null;
 };
 
@@ -384,6 +392,7 @@ export type ChannelWatcherPatch = {
   default_genres?: string | null;
   auto_publish?: boolean;
   extract_setlist_from_comments?: boolean;
+  extract_setlist_from_setlistfm?: boolean;
   auto_delete_source_after_publish?: boolean | null;
 };
 
@@ -431,6 +440,7 @@ export type BacklogItem = {
   upload_date: string | null;
   duration_s: number | null;
   view_count: number | null;
+  like_count: number | null;
   state: BacklogItemState;
 };
 
