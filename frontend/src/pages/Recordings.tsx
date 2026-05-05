@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -35,7 +35,10 @@ function fmtBytes(n: number): string {
 export default function RecordingsPage() {
   const { data: recordings, isLoading } = useRecordings();
   const { data: streams } = useStreams();
-  const streamMap = new Map<number, Stream>((streams ?? []).map((s) => [s.id, s]));
+  const streamMap = useMemo(
+    () => new Map<number, Stream>((streams ?? []).map((s) => [s.id, s])),
+    [streams],
+  );
 
   const [statusFilter, setStatusFilter] = useState<RecordingStatus | "all">("all");
 

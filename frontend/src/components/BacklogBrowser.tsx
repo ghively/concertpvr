@@ -10,7 +10,6 @@ import type { BacklogItem } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useQueryClient } from "@tanstack/react-query";
-import { watchersKeys } from "@/lib/query";
 import { cn } from "@/lib/utils";
 
 type SortMode = "newest" | "most_viewed" | "most_liked" | "longest" | "oldest";
@@ -259,6 +258,9 @@ export function BacklogBrowser({ watcherId }: { watcherId: number }) {
   // User-triggered only — backlog browse never auto-downloads.
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const invalidateBacklog = () =>
+    qc.invalidateQueries({ queryKey: ["backlog", watcherId] });
+
   const handleBulkDownload = async () => {
     if (selected.size === 0) return;
     try {
@@ -266,7 +268,7 @@ export function BacklogBrowser({ watcherId }: { watcherId: number }) {
         video_ids: [...selected],
       });
       setSelected(new Set());
-      qc.invalidateQueries({ queryKey: watchersKeys.backlog(watcherId, sort, offset) });
+      invalidateBacklog();
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : "Action failed");
     }
@@ -277,7 +279,7 @@ export function BacklogBrowser({ watcherId }: { watcherId: number }) {
       await api.post(`/api/channel-watchers/${watcherId}/backlog/download`, {
         video_ids: [youtubeId],
       });
-      qc.invalidateQueries({ queryKey: watchersKeys.backlog(watcherId, sort, offset) });
+      invalidateBacklog();
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : "Action failed");
     }
@@ -288,7 +290,7 @@ export function BacklogBrowser({ watcherId }: { watcherId: number }) {
       await api.post(`/api/channel-watchers/${watcherId}/backlog/cancel`, {
         video_ids: [youtubeId],
       });
-      qc.invalidateQueries({ queryKey: watchersKeys.backlog(watcherId, sort, offset) });
+      invalidateBacklog();
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : "Action failed");
     }

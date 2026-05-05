@@ -239,8 +239,9 @@ export default function PostDownloadReviewPage() {
     setDrafts((ds) => ds.map((d, i) => i === idx ? { ...d, ...patch } : d));
   };
 
-  const saveDrafts = async () => {
+  const saveDrafts = async (): Promise<number[]> => {
     setSaveStatus("saving");
+    const savedIds: number[] = [];
     try {
       for (const d of drafts) {
         const payload: SegmentCreate = {
@@ -254,23 +255,30 @@ export default function PostDownloadReviewPage() {
         };
         if (d.id) {
           await updateMut.mutateAsync({ id: d.id, patch: { artist: payload.artist, title: payload.title, genres: payload.genres } });
+          savedIds.push(d.id);
         } else {
-          await createMut.mutateAsync(payload);
+          const created = await createMut.mutateAsync(payload);
+          savedIds.push(created.id);
         }
       }
       setSaveStatus("saved");
       setTimeout(() => setSaveStatus("idle"), 2000);
-    } catch {
+    } catch (e) {
       setSaveStatus("error");
+      throw e;
     }
+    return savedIds;
   };
 
   const publishAll = async () => {
-    await saveDrafts();
-    for (const seg of existingSegments) {
-      if (seg.status === "draft") {
-        await publishMut.mutateAsync({ id: seg.id, options: {} });
-      }
+    let segIds: number[];
+    try {
+      segIds = await saveDrafts();
+    } catch {
+      return; // save failed — don't attempt publish
+    }
+    for (const segId of segIds) {
+      await publishMut.mutateAsync({ id: segId, options: {} });
     }
   };
 

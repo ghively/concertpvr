@@ -106,6 +106,12 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
         _vod_cap = _row.max_concurrent_vod_downloads if _row else 2
 
     async def _vod_handler(rec_id: int) -> None:
+        from sqlalchemy import select as _select
+
+        from concertpvr.models import Segment as _Segment
+
+        _log = _logging_vod.getLogger(__name__)
+
         with app.state.db.session() as s:
             rec = s.get(_Recording, rec_id)
             if rec is None:
@@ -189,8 +195,7 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
             usable = [p for p in matches if p.is_file() and p.suffix not in {".part", ".ytdl"}]
             if usable:
                 resolved_path = usable[0]
-                logger_main = _logging_vod.getLogger(__name__)
-                logger_main.info("vod_handler: resolved %s -> %s", output_path, resolved_path)
+                _log.info("vod_handler: resolved %s -> %s", output_path, resolved_path)
 
         # Run ffprobe to populate width/height/duration_s/size_bytes
         media_info = None
@@ -198,8 +203,7 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
             splitter = _Splitter(runner=_AsyncSubprocessRunner())
             media_info = await splitter.probe(resolved_path)
         except Exception:  # noqa: BLE001
-            logger_main = _logging_vod.getLogger(__name__)
-            logger_main.warning(
+            _log.warning(
                 "ffprobe failed for recording %d at %s — leaving dimensions null",
                 rec_id,
                 resolved_path,
@@ -225,19 +229,14 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
 
             auto_publish = rec.auto_publish_after_download
 
-            from sqlalchemy import select
-
-            from concertpvr.models import Segment
-
-            segs = list(s.scalars(select(Segment).where(Segment.recording_id == rec_id)))
+            segs = list(s.scalars(_select(_Segment).where(_Segment.recording_id == rec_id)))
             publishable = [seg for seg in segs if seg.artist]
 
         if not auto_publish:
             return
 
         if not publishable:
-            logger_main = _logging_vod.getLogger(__name__)
-            logger_main.info(
+            _log.info(
                 "auto_publish skipped for rec %d — no segments with non-null artist",
                 rec_id,
             )
@@ -248,8 +247,7 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
             try:
                 await publisher.publish(seg.id)
             except Exception:  # noqa: BLE001
-                logger_main = _logging_vod.getLogger(__name__)
-                logger_main.exception("auto-publish failed for segment %d", seg.id)
+                _log.exception("auto-publish failed for segment %d", seg.id)
 
     app.state.vod_queue = VodQueue(
         db=app.state.db,

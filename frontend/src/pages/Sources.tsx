@@ -15,7 +15,6 @@ import { Badge } from "@/components/ui/badge";
 import { useConfirm } from "@/components/ui/confirm";
 import { LiveProgressBar } from "@/components/LiveProgressBar";
 import { SmartPasteModal } from "@/components/SmartPasteModal";
-import { COMMON_GENRES } from "@/lib/genres";
 import type { Stream, Recording } from "@/lib/api";
 import { STATUS_META } from "@/lib/badges";
 
@@ -113,13 +112,10 @@ export default function SourcesPage() {
 
   const [kindFilter, setKindFilter] = useState<"all" | "live" | "video">("all");
   const [watcherFilter, setWatcherFilter] = useState<string>("all");
-  const [selectedGenres, setSelectedGenres] = useState<Set<string>>(new Set());
 
   const activeCount = (recordings ?? []).filter((r) => r.status === "recording").length;
   const max = settings?.max_concurrent_recordings ?? 4;
   const poolFull = activeCount >= max;
-
-  const genreOptions = useMemo(() => Array.from(new Set(COMMON_GENRES)).sort(), []);
 
   const visible = useMemo(() => {
     let list = streams ?? [];
@@ -129,18 +125,8 @@ export default function SourcesPage() {
     if (watcherFilter !== "all") {
       list = list.filter((s) => s.channel_name === watcherFilter);
     }
-    // Genre filtering deferred until streams expose tags — selectedGenres kept in state for UX
     return list;
   }, [streams, kindFilter, watcherFilter]);
-
-  const toggleGenre = (g: string) => {
-    setSelectedGenres((prev) => {
-      const next = new Set(prev);
-      if (next.has(g)) next.delete(g);
-      else next.add(g);
-      return next;
-    });
-  };
 
   return (
     <div>
@@ -180,24 +166,6 @@ export default function SourcesPage() {
           ))}
         </div>
       )}
-
-      {/* Genre filter row (multi-select) */}
-      <div className="flex items-center gap-2 mb-4 flex-wrap">
-        <span className="text-[10px] uppercase tracking-wider text-ink-faint mr-1 select-none">Genre:</span>
-        {genreOptions.map((g) => (
-          <Chip key={g} active={selectedGenres.has(g)} onClick={() => toggleGenre(g)}>
-            {g}
-          </Chip>
-        ))}
-        {selectedGenres.size > 0 && (
-          <button
-            className="text-[11px] text-ink-faint hover:text-ink ml-1"
-            onClick={() => setSelectedGenres(new Set())}
-          >
-            Clear
-          </button>
-        )}
-      </div>
 
       {isLoading && <p className="text-ink-dim text-xs">Loading…</p>}
       {!isLoading && visible.length === 0 && (
