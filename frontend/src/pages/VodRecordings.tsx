@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { useRecordings, useStreams } from "@/lib/query";
 import { VodQueueStrip } from "@/components/VodQueueStrip";
@@ -29,8 +29,9 @@ export default function VodRecordingsPage() {
   const { data: streams } = useStreams();
   const [filter, setFilter] = useState<VodFilter>("all");
 
-  const streamMap = new Map<number, Stream>(
-    (streams ?? []).map((s) => [s.id, s]),
+  const streamMap = useMemo(
+    () => new Map<number, Stream>((streams ?? []).map((s) => [s.id, s])),
+    [streams],
   );
 
   const visible = (recordings ?? []).filter((r) => {

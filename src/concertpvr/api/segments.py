@@ -107,7 +107,7 @@ def patch_segment(
     segment_id: int,
     patch: SegmentPatch,
     db: Database = Depends(get_db),  # noqa: B008
-) -> Segment:
+) -> SegmentRead:
     updates = patch.model_dump(exclude_unset=True)
     with db.session() as s:
         seg = s.get(Segment, segment_id)
@@ -118,9 +118,15 @@ def patch_segment(
         if seg.end_s <= seg.start_s:
             raise HTTPException(status_code=400, detail="end_s must be after start_s")
         s.flush()
-        s.refresh(seg)
-        s.expunge(seg)
-    return seg
+        seg_id = seg.id
+        seg_loaded = s.scalar(
+            select(Segment)
+            .where(Segment.id == seg_id)
+            .options(joinedload(Segment.recording).joinedload(Recording.stream))
+        )
+        if seg_loaded is None:
+            raise HTTPException(status_code=404, detail="segment not found after patch")
+        return _to_read(seg_loaded)
 
 
 @router.delete("/segments/{segment_id}", status_code=status.HTTP_204_NO_CONTENT)

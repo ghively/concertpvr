@@ -51,6 +51,9 @@ function SettingsTab({ watcher }: { watcher: ChannelWatcher }) {
   const [extractSetlist, setExtractSetlist] = useState(
     watcher.extract_setlist_from_comments ?? false,
   );
+  const [extractSetlistFm, setExtractSetlistFm] = useState(
+    watcher.extract_setlist_from_setlistfm ?? false,
+  );
   const [autoDelete, setAutoDelete] = useState<AutoDeleteValue>(
     toAutoDeleteValue(watcher.auto_delete_source_after_publish),
   );
@@ -67,6 +70,7 @@ function SettingsTab({ watcher }: { watcher: ChannelWatcher }) {
     setDefaultGenres(watcher.default_genres ?? "");
     setAutoPublish(watcher.auto_publish ?? false);
     setExtractSetlist(watcher.extract_setlist_from_comments ?? false);
+    setExtractSetlistFm(watcher.extract_setlist_from_setlistfm ?? false);
     setAutoDelete(toAutoDeleteValue(watcher.auto_delete_source_after_publish));
     setDirty(false);
   }, [watcher]);
@@ -86,6 +90,7 @@ function SettingsTab({ watcher }: { watcher: ChannelWatcher }) {
       default_genres: defaultGenres.trim() || null,
       auto_publish: autoPublish,
       extract_setlist_from_comments: extractSetlist,
+      extract_setlist_from_setlistfm: extractSetlistFm,
       auto_delete_source_after_publish: fromAutoDeleteValue(autoDelete),
     };
     update.mutate(
@@ -109,6 +114,7 @@ function SettingsTab({ watcher }: { watcher: ChannelWatcher }) {
     setDefaultGenres(watcher.default_genres ?? "");
     setAutoPublish(watcher.auto_publish ?? false);
     setExtractSetlist(watcher.extract_setlist_from_comments ?? false);
+    setExtractSetlistFm(watcher.extract_setlist_from_setlistfm ?? false);
     setAutoDelete(toAutoDeleteValue(watcher.auto_delete_source_after_publish));
     setDirty(false);
     setSaved(false);
@@ -282,6 +288,13 @@ function SettingsTab({ watcher }: { watcher: ChannelWatcher }) {
             onChange={setExtractSetlist}
             label="Extract setlists from comments"
             helper="Slower polling (~3–5s extra per upload). Ideal for channels where fans post setlists in comments."
+          />
+
+          <Toggle
+            checked={extractSetlistFm}
+            onChange={setExtractSetlistFm}
+            label="Look up setlists on Setlist.fm"
+            helper="Requires a Setlist.fm API key in Settings. Matched by channel name + upload date."
           />
 
           <div className="mb-3.5 mt-1">

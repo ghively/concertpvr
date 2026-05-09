@@ -40,12 +40,14 @@ class _RealManagedProcess:
         self.pid = proc.pid
 
     async def stdout_lines(self) -> AsyncIterator[str]:
-        assert self._proc.stdout is not None
+        if self._proc.stdout is None:
+            raise RuntimeError("stdout pipe not available")
         async for raw in self._proc.stdout:
             yield raw.decode(errors="replace").rstrip("\r\n")
 
     async def stderr_lines(self) -> AsyncIterator[str]:
-        assert self._proc.stderr is not None
+        if self._proc.stderr is None:
+            raise RuntimeError("stderr pipe not available")
         async for raw in self._proc.stderr:
             yield raw.decode(errors="replace").rstrip("\r\n")
 
