@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import path from "path";
 
@@ -16,5 +16,10 @@ export default defineConfig({
   build: {
     outDir: "dist",
     emptyOutDir: true,
+  },
+  test: {
+    // No component tests authored yet (see README) — don't fail CI/`npm test`
+    // just because the suite is empty.
+    passWithNoTests: true,
   },
 });
