@@ -29,7 +29,7 @@ YouTube concert & livestream PVR with Emby integration. Runs on Synology NAS via
 
 ## Status
 
-Active development. See [`CHANGELOG.md`](CHANGELOG.md) for shipped versions and [`docs/superpowers/plans/`](docs/superpowers/plans/) for the per-version implementation plans. Current track:
+Active development. See [`CHANGELOG.md`](CHANGELOG.md) for shipped versions. Current track:
 
 - `v0.3.0` — VOD downloads shipped (Tiny Desk / KEXP / NPR / playlists).
 - `v0.3.1` — whole-channel backlog browse + VOD subscription safety + VOD progress UI shipped.
@@ -37,8 +37,6 @@ Active development. See [`CHANGELOG.md`](CHANGELOG.md) for shipped versions and 
 - `v0.3.3` — VOD bug-sweep + Most viewed backlog sort (slow-refresh opt-in).
 - `v0.4.0` — feature wrap-up: cancel-while-downloading, slow-refresh resume, calendar Schedule view, bulk-retry failed publishes, WebSocket auth, Recording → Schedule reverse lookup.
 - `v0.4.1` — final long-tail features: like counts (Most liked sort), auto Emby path translation, setlist.fm integration, YouTube DVR-window scraping (`POST /streams/{id}/dvr-pull`).
-
-Original design spec: [`docs/superpowers/specs/2026-04-24-concertpvr-design.md`](docs/superpowers/specs/2026-04-24-concertpvr-design.md). VOD design spec: [`docs/superpowers/specs/2026-04-26-vod-downloads-design.md`](docs/superpowers/specs/2026-04-26-vod-downloads-design.md).
 
 ## Audit harness
 
