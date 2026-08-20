@@ -45,3 +45,6 @@ Thumbs.db
 .env.local
 *.key
 cookies.txt
+
+# Local agent/editor state
+.claude/
