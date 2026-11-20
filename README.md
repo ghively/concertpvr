@@ -109,7 +109,7 @@ Frontend at http://localhost:5173, proxying `/api/*` to the backend.
 ## Tests
 
 ```bash
-pytest                       # backend (177 tests as of v0.1.0)
+pytest                       # backend (340 tests)
 cd frontend && npm run typecheck && npm run build
 ```
 
